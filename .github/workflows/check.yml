@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CRATE: example
-  PLUGIN: Example
+  CRATE: halfwit
+  PLUGIN: Halfwit
 
 jobs:
   macos:

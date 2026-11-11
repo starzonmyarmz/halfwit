@@ -214,13 +214,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "example"
-version = "0.1.0"
-dependencies = [
- "nice-plug",
-]
-
-[[package]]
 name = "fragile"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -241,6 +234,13 @@ dependencies = [
  "log",
  "plain",
  "scroll",
+]
+
+[[package]]
+name = "halfwit"
+version = "0.1.0"
+dependencies = [
+ "nice-plug",
 ]
 
 [[package]]
