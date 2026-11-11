@@ -1,26 +1,19 @@
 pub mod engine;
+pub mod params;
 
+use engine::{Engine, LATENCY};
 use nice_plug::prelude::*;
+use params::HalfwitParams;
 use std::sync::Arc;
 
 pub struct Halfwit {
     params: Arc<HalfwitParams>,
-}
-
-#[derive(Params)]
-struct HalfwitParams {
-    #[id = "gain"]
-    gain: FloatParam,
+    engine: Engine,
 }
 
 impl Default for Halfwit {
     fn default() -> Self {
-        let gain = FloatParam::new("Gain", util::db_to_gain(0.0), FloatRange::gain_range(-30.0, 30.0))
-            .with_smoother(SmoothingStyle::Logarithmic(50.0))
-            .with_unit(" dB")
-            .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
-            .with_string_to_value(formatters::s2v_f32_gain_to_db());
-        Self { params: Arc::new(HalfwitParams { gain }) }
+        Self { params: Arc::new(HalfwitParams::default()), engine: Engine::new(48_000.0) }
     }
 }
 
@@ -45,17 +38,32 @@ impl Plugin for Halfwit {
         self.params.clone()
     }
 
+    fn activate(
+        &mut self,
+        _layout: &AudioIOLayout,
+        buffer_config: &BufferConfig,
+        context: &mut impl ActivateContext<Self>,
+    ) -> bool {
+        context.set_latency_samples(LATENCY);
+        if self.engine.sample_rate() != buffer_config.sample_rate {
+            self.engine = Engine::new(buffer_config.sample_rate);
+        }
+        true
+    }
+
+    fn reset(&mut self) {
+        self.engine.reset();
+    }
+
     fn process(
         &mut self,
         buffer: &mut Buffer,
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        for samples in buffer.iter_samples() {
-            let gain = self.params.gain.smoothed.next();
-            for sample in samples {
-                *sample *= gain;
-            }
+        self.engine.set(self.params.settings());
+        if let [left, right] = buffer.as_slice() {
+            self.engine.process(left, right);
         }
         ProcessStatus::Normal
     }
@@ -63,15 +71,16 @@ impl Plugin for Halfwit {
 
 impl ClapPlugin for Halfwit {
     const CLAP_ID: &'static str = "com.danmarino.halfwit";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("A gain knob");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Octave-divider bass layer for guitar");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
-    const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Stereo];
+    const CLAP_FEATURES: &'static [ClapFeature] =
+        &[ClapFeature::AudioEffect, ClapFeature::PitchShifter, ClapFeature::Distortion, ClapFeature::Stereo];
 }
 
 impl Vst3Plugin for Halfwit {
     const VST3_CLASS_ID: [u8; 16] = *b"HalfwitDanMarino";
-    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx];
+    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::PitchShift];
 }
 
 nice_export_clap!(Halfwit);
