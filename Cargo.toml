@@ -13,3 +13,12 @@ strip = "symbols"
 inherits = "release"
 debug = true
 strip = "none"
+
+# Old objc-based crates message nil, which Objective-C allows but Rust's
+# debug-build null checks turn into aborts.
+[profile.dev.package.objc]
+debug-assertions = false
+[profile.dev.package.baseview]
+debug-assertions = false
+[profile.dev.package.wry]
+debug-assertions = false

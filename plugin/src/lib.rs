@@ -1,3 +1,5 @@
+mod bridge;
+mod editor;
 pub mod engine;
 pub mod params;
 
@@ -5,6 +7,14 @@ use engine::{Engine, LATENCY};
 use nice_plug::prelude::*;
 use params::HalfwitParams;
 use std::sync::Arc;
+
+static PAGE: editor::Page = editor::Page {
+    title: "Halfwit",
+    size: (440, 640),
+    html: include_str!("../../ui/index.html"),
+    background: (24, 23, 22, 255),
+    dev_url_var: "HALFWIT_UI_URL",
+};
 
 pub struct Halfwit {
     params: Arc<HalfwitParams>,
@@ -30,12 +40,16 @@ impl Plugin for Halfwit {
         ..AudioIOLayout::const_default()
     }];
 
-    type Editor = ();
+    type Editor = editor::WebEditor;
     type SysExMessage = ();
     type BackgroundTask = ();
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
+    }
+
+    fn editor(&mut self, _executor: AsyncExecutor<Self>) -> Option<Self::Editor> {
+        Some(editor::WebEditor::new(&PAGE, self.params.clone()))
     }
 
     fn activate(
