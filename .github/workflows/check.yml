@@ -1,0 +1,38 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CRATE: example
+  PLUGIN: Example
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+      - run: cargo xtask bundle "$CRATE" --release
+      - run: scripts/clap-validator.sh "target/bundled/$PLUGIN.clap"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask bundle "$CRATE" --release
+        shell: bash
+      - run: scripts/clap-validator.sh "target/bundled/$PLUGIN.clap"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}

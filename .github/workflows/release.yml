@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+
+env:
+  CRATE: example
+  PLUGIN: Example
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Cargo.toml's version $version isn't semver"
+            exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match Cargo.toml's version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask bundle-universal "$CRATE" --release
+      - run: scripts/clap-validator.sh "target/bundled/$PLUGIN.clap"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Zip
+        run: |
+          mkdir -p stage/macOS dist
+          cp -R "target/bundled/$PLUGIN.vst3" "target/bundled/$PLUGIN.clap" stage/macOS/
+          ditto -c -k --norsrc --noextattr --noacl --keepParent stage/macOS dist/macos.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/*
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask bundle "$CRATE" --release
+        shell: bash
+      - run: scripts/clap-validator.sh "target/bundled/$PLUGIN.clap"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force stage/Windows, dist
+          Copy-Item -Recurse "target/bundled/$env:PLUGIN.vst3", "target/bundled/$env:PLUGIN.clap" stage/Windows
+          Compress-Archive -Path stage/Windows -DestinationPath dist/windows.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: dist/*
+
+  release:
+    needs: [version, macos, windows]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Zip
+        run: |
+          mkdir stage
+          unzip -q dist/macos.zip -d stage
+          unzip -q dist/windows.zip -d stage
+          cp INSTALL.txt stage/
+          cd stage
+          zip -qry "../$PLUGIN-$VERSION.zip" INSTALL.txt macOS Windows
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          prerelease=
+          case "$VERSION" in *-*) prerelease=--prerelease ;; esac
+          gh release create "$GITHUB_REF_NAME" "$PLUGIN-$VERSION.zip" \
+            --title "$PLUGIN $VERSION" \
+            --generate-notes \
+            --verify-tag $prerelease
