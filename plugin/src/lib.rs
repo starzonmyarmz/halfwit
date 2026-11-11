@@ -1,3 +1,5 @@
+pub mod engine;
+
 use nice_plug::prelude::*;
 use std::sync::Arc;
 

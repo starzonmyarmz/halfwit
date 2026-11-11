@@ -9,3 +9,6 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 nice-plug = { git = "https://github.com/starzonmyarmz/nice-plug", rev = "d1f60d25612cc22383f5952ae285638a58903bab", features = ["assert_process_allocs"] }
+
+[dev-dependencies]
+hound = "3.5"
