@@ -1,6 +1,6 @@
 # Halfwit
 
-<img src="docs/halfwit.jpg" width="293" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel, and a footswitch">
+<img src="docs/halfwit.jpg" width="325" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel, and a footswitch">
 
 An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
 for macOS and Windows. It's for two-piece bands with no bass player: it
@@ -18,8 +18,10 @@ that's part of the sound.
    hysteresis, so harmonics and string noise don't trigger it.
 2. Every rising crossing flips a square wave, which halves the
    frequency. In Smooth feel, the square drives a rounded wave instead.
-3. A gate silences the layer between notes, then drive, a two-pole
-   low-pass (Tone) and a DC blocker shape it.
+3. A gate silences the layer between notes, and Dynamics makes it
+   follow the playing level. Both read the detector's band-limited
+   copy, so pick scrapes and fret noise barely open them. Then drive, a
+   two-pole low-pass (Tone) and a DC blocker shape the layer.
 4. The Output selector decides where it goes: by default the guitar
    leaves the main output and the bass leaves the Bass aux output.
 
@@ -37,8 +39,9 @@ latency, which hosts compensate for.
 | Drive | 0–200% | Saturates the bass layer and hides divider glitches |
 | Feel | Raw / Smooth | Raw is the hard square; Smooth is rounder, closer to a sine |
 | Output | Split / Mix / Bass | Split: guitar on the main output, bass on the Bass output. Mix: both on the main output, like an octave pedal. Bass: only the bass, on the main output |
-| Gate: Thresh | −80–0 dB | Input level below which the bass layer shuts off |
+| Gate: Thresh | −80–0 dB | Input level, below 700 Hz, under which the bass layer shuts off |
 | Gate: Rel | 1–500 ms | How long the gate stays open after the input drops |
+| Gate: Dyn | 0–100% | How far the bass layer follows your picking: 0% is a constant level, 100% tracks it fully up to −18 dBFS. Higher settings keep stray noises quiet |
 | Footswitch | On / Off | Turns the bass layer on and off; the guitar still passes |
 
 Drag a knob up or down (hold Shift for fine moves), scroll, or use the
@@ -67,6 +70,8 @@ of the guitar track.
   Palm mutes and power chords work; full chords won't.
 - Set Gate: Thresh just above your noise floor, especially with
   single-coil pickups, or hum will keep the divider chattering.
+- If pick scrapes or fret noise still come through, turn up Gate: Dyn
+  so they come out quieter, then make up the level with Level or Blend.
 
 ## Installing
 
@@ -92,9 +97,10 @@ scripts/clap-validator.sh target/bundled/Halfwit.clap
   with `HALFWIT_BLESS=1` to rewrite them, then listen to the new files
   before committing.
 - Synthetic tests check octave tracking from low E to high E, the gate
-  closing after a note, footswitch-off passing the guitar through at
-  the reported latency, Split and Mix routing, and finite output from
-  22.05 to 192 kHz.
+  closing after a note, a pick scrape not sounding the bass, Dynamics
+  following the playing level, footswitch-off passing the guitar
+  through at the reported latency, Split and Mix routing, and finite
+  output from 22.05 to 192 kHz.
 
 ## Working on the UI
 

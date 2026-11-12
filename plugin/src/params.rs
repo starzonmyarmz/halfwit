@@ -22,6 +22,8 @@ pub struct HalfwitParams {
     pub level: FloatParam,
     #[id = "drive"]
     pub drive: FloatParam,
+    #[id = "dynamics"]
+    pub dynamics: FloatParam,
     #[id = "tone"]
     pub tone: FloatParam,
     #[id = "gate"]
@@ -49,6 +51,7 @@ impl Default for HalfwitParams {
             blend: percent("Blend", 0.4, 1.0),
             level: percent("Level", 0.7, 1.0),
             drive: percent("Drive", 0.0, 2.0),
+            dynamics: percent("Dynamics", 0.5, 1.0),
             tone: FloatParam::new(
                 "Tone",
                 250.0,
@@ -88,6 +91,7 @@ impl HalfwitParams {
             },
             level: self.level.value() as f64,
             drive: self.drive.value() as f64,
+            dynamics: self.dynamics.value() as f64,
             output: match self.output.value() {
                 OutputParam::Split => Output::Split,
                 OutputParam::Mix => Output::Mix,

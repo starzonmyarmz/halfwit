@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 static PAGE: editor::Page = editor::Page {
     title: "Halfwit",
-    size: (440, 640),
+    size: (488, 640),
     html: include_str!("../../ui/index.html"),
     background: (24, 23, 22, 255),
     dev_url_var: "HALFWIT_UI_URL",

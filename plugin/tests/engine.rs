@@ -173,3 +173,49 @@ fn stays_finite_at_every_sample_rate() {
         }
     }
 }
+
+/// A pick scrape: 30 ms of differentiated white noise peaking at -10 dBFS.
+fn scrape(sample_rate: f32) -> Vec<f32> {
+    let mut seed = 1u32;
+    let mut white = || {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        seed as f32 / u32::MAX as f32 * 2.0 - 1.0
+    };
+    let mut prev = 0.0;
+    let mut out: Vec<f32> = (0..(0.03 * sample_rate) as usize)
+        .map(|_| {
+            let w = white();
+            let hf = w - prev;
+            prev = w;
+            hf
+        })
+        .collect();
+    let scale = 0.3 / peak(&out);
+    out.iter_mut().for_each(|s| *s *= scale);
+    out
+}
+
+#[test]
+fn a_pick_scrape_barely_sounds_the_bass() {
+    let note = tone(110.0, 0.5, SR);
+    let mut input = vec![0.0; SR as usize / 2];
+    input.extend(scrape(SR));
+    input.extend(vec![0.0; SR as usize / 2]);
+    let settings = Settings { dynamics: 0.0, ..bass_only(Feel::Raw) };
+    let from_scrape = peak(&render(&input, SR, settings));
+    let from_note = peak(&render(&note, SR, settings));
+    assert!(from_scrape < from_note * 0.05, "scrape gave {from_scrape}, a note gives {from_note}");
+}
+
+#[test]
+fn dynamics_makes_the_bass_follow_the_playing_level() {
+    let loud: Vec<f32> = tone(110.0, 1.0, SR).iter().map(|s| s * 0.2).collect();
+    let quiet: Vec<f32> = loud.iter().map(|s| s * 0.1).collect();
+    let ratio = |dynamics| {
+        let settings = Settings { dynamics, ..bass_only(Feel::Raw) };
+        let settled = SR as usize / 2;
+        peak(&render(&quiet, SR, settings)[settled..]) / peak(&render(&loud, SR, settings)[settled..])
+    };
+    assert!((ratio(0.0) - 1.0).abs() < 0.05, "Dynamics at 0 should keep a constant level, got {}", ratio(0.0));
+    assert!(ratio(1.0) < 0.15, "Dynamics at 1 should follow a 20 dB drop, got {}", ratio(1.0));
+}

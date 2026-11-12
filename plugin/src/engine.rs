@@ -4,6 +4,9 @@ use std::f64::consts::PI;
 /// input by one sample. Dry is delayed to match.
 pub const LATENCY: u32 = 1;
 
+/// Band-limited input level (-18 dBFS) at which Dynamics gives full level.
+const DYNAMICS_FULL: f64 = 0.125;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Feel {
     Raw,
@@ -33,6 +36,9 @@ pub struct Settings {
     pub level: f64,
     /// 0 to 2, where 0 bypasses the drive.
     pub drive: f64,
+    /// 0 to 1: how far the bass layer follows the playing level, from a
+    /// constant level at 0 to fully proportional at 1.
+    pub dynamics: f64,
     pub output: Output,
 }
 
@@ -47,6 +53,7 @@ impl Default for Settings {
             feel: Feel::Raw,
             level: 0.7,
             drive: 0.0,
+            dynamics: 0.5,
             output: Output::Split,
         }
     }
@@ -62,6 +69,8 @@ pub struct Engine {
     dc_r: f64,
     gate_att: f64,
     gate_rel_sm: f64,
+    dyn_rel: f64,
+    dyn_sm_a: f64,
     max_period: f64,
     lpf_a: f64,
     gate_thresh: f64,
@@ -81,6 +90,8 @@ pub struct Engine {
     lp2: f64,
     gate_env: f64,
     gate_sm: f64,
+    dyn_env: f64,
+    dyn_sm: f64,
     dc_x1: f64,
     dc_y1: f64,
 
@@ -102,6 +113,8 @@ impl Engine {
             dc_r: (-2.0 * PI * 10.0 / sr).exp(),
             gate_att: 1.0 - (-1.0 / (sr * 0.002)).exp(),
             gate_rel_sm: 1.0 - (-1.0 / (sr * 0.01)).exp(),
+            dyn_rel: (-1.0 / (sr * 0.05)).exp(),
+            dyn_sm_a: 1.0 - (-1.0 / (sr * 0.005)).exp(),
             max_period: (sr / 20.0).floor(),
             lpf_a: 0.0,
             gate_thresh: 0.0,
@@ -120,6 +133,8 @@ impl Engine {
             lp2: 0.0,
             gate_env: 0.0,
             gate_sm: 0.0,
+            dyn_env: 0.0,
+            dyn_sm: 0.0,
             dc_x1: 0.0,
             dc_y1: 0.0,
             held_bass: 0.0,
@@ -150,6 +165,8 @@ impl Engine {
         self.lp2 = 0.0;
         self.gate_env = 0.0;
         self.gate_sm = 0.0;
+        self.dyn_env = 0.0;
+        self.dyn_sm = 0.0;
         self.dc_x1 = 0.0;
         self.dc_y1 = 0.0;
         self.held_bass = 0.0;
@@ -237,12 +254,19 @@ impl Engine {
             }
         };
 
-        let am = mono.abs();
+        // The gate and dynamics read the detector's band-limited signal, so
+        // pick scrapes and fret noise barely register.
+        let am = self.det_y.abs();
         self.gate_env = if am > self.gate_env { am } else { self.gate_env * self.gate_rel };
         let gate = if self.gate_env > self.gate_thresh { 1.0 } else { 0.0 };
         let coef = if gate > self.gate_sm { self.gate_att } else { self.gate_rel_sm };
         self.gate_sm += (gate - self.gate_sm) * coef;
-        let gain = self.gate_sm * s.level * if s.stomp { 1.0 } else { 0.0 };
+
+        self.dyn_env = am.max(self.dyn_env * self.dyn_rel);
+        let follow = (self.dyn_env / DYNAMICS_FULL).min(1.0).powf(s.dynamics);
+        self.dyn_sm += (follow - self.dyn_sm) * self.dyn_sm_a;
+
+        let gain = self.gate_sm * self.dyn_sm * s.level * if s.stomp { 1.0 } else { 0.0 };
 
         let bass_out = self.shape(self.held_bass * self.held_gain, s) * s.blend;
         let [dry_l, dry_r] = self.held_dry;
