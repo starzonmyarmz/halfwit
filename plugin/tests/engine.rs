@@ -1,4 +1,4 @@
-use halfwit::engine::{Engine, Feel, Settings, LATENCY};
+use halfwit::engine::{Engine, Feel, Output, Settings, LATENCY};
 use std::f64::consts::PI;
 use std::path::PathBuf;
 
@@ -36,20 +36,25 @@ fn write_wav(path: &PathBuf, samples: &[f32], sample_rate: u32) {
 }
 
 /// Runs mono input through the engine in host-sized blocks and returns the
-/// left output.
-fn render(input: &[f32], sample_rate: f32, settings: Settings) -> Vec<f32> {
+/// left main output and the bass output.
+fn render_both(input: &[f32], sample_rate: f32, settings: Settings) -> (Vec<f32>, Vec<f32>) {
     let mut engine = Engine::new(sample_rate);
     engine.set(settings);
     let mut left = input.to_vec();
     let mut right = input.to_vec();
-    for (l, r) in left.chunks_mut(512).zip(right.chunks_mut(512)) {
-        engine.process(l, r);
+    let mut bass = vec![0.0; input.len()];
+    for ((l, r), b) in left.chunks_mut(512).zip(right.chunks_mut(512)).zip(bass.chunks_mut(512)) {
+        engine.process(l, r, b);
     }
-    left
+    (left, bass)
+}
+
+fn render(input: &[f32], sample_rate: f32, settings: Settings) -> Vec<f32> {
+    render_both(input, sample_rate, settings).0
 }
 
 fn bass_only(feel: Feel) -> Settings {
-    Settings { blend: 1.0, dry: false, feel, ..Settings::default() }
+    Settings { blend: 1.0, output: Output::Bass, feel, ..Settings::default() }
 }
 
 fn tone(freq: f64, seconds: f64, sample_rate: f32) -> Vec<f32> {
@@ -134,6 +139,27 @@ fn stomp_off_passes_dry_through_with_the_reported_latency() {
     let latency = LATENCY as usize;
     assert!(out[..latency].iter().all(|&s| s == 0.0));
     assert_eq!(&out[latency..], &input[..input.len() - latency]);
+}
+
+#[test]
+fn split_sends_guitar_to_main_and_bass_to_aux() {
+    let input = tone(110.0, 1.0, SR);
+    let settings = Settings { blend: 1.0, ..Settings::default() };
+    assert_eq!(settings.output, Output::Split, "split should be the default");
+    let (main, bass) = render_both(&input, SR, settings);
+    let latency = LATENCY as usize;
+    assert_eq!(&main[latency..], &input[..input.len() - latency]);
+    assert_eq!(bass, render(&input, SR, bass_only(Feel::Raw)));
+}
+
+#[test]
+fn mix_adds_the_bass_to_the_guitar() {
+    let input = tone(110.0, 1.0, SR);
+    let (main, bass) = render_both(&input, SR, Settings { output: Output::Mix, ..Settings::default() });
+    let latency = LATENCY as usize;
+    for i in latency..input.len() {
+        assert!((main[i] - (input[i - latency] + bass[i])).abs() < 1e-6, "sample {i}");
+    }
 }
 
 #[test]

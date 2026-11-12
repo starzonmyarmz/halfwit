@@ -1,10 +1,17 @@
-use crate::engine::{Feel, Settings};
+use crate::engine::{Feel, Output, Settings};
 use nice_plug::prelude::*;
 
 #[derive(Enum, Clone, Copy, PartialEq, Debug)]
 pub enum FeelParam {
     Raw,
     Smooth,
+}
+
+#[derive(Enum, Clone, Copy, PartialEq, Debug)]
+pub enum OutputParam {
+    Split,
+    Mix,
+    Bass,
 }
 
 #[derive(Params)]
@@ -23,8 +30,8 @@ pub struct HalfwitParams {
     pub release: FloatParam,
     #[id = "feel"]
     pub feel: EnumParam<FeelParam>,
-    #[id = "dry"]
-    pub dry: BoolParam,
+    #[id = "output"]
+    pub output: EnumParam<OutputParam>,
     #[id = "stomp"]
     pub stomp: BoolParam,
 }
@@ -61,7 +68,7 @@ impl Default for HalfwitParams {
             .with_unit(" ms")
             .with_value_to_string(formatters::v2s_f32_rounded(0)),
             feel: EnumParam::new("Feel", FeelParam::Raw),
-            dry: BoolParam::new("Dry", true),
+            output: EnumParam::new("Output", OutputParam::Split),
             stomp: BoolParam::new("Stomp", true),
         }
     }
@@ -81,7 +88,11 @@ impl HalfwitParams {
             },
             level: self.level.value() as f64,
             drive: self.drive.value() as f64,
-            dry: self.dry.value(),
+            output: match self.output.value() {
+                OutputParam::Split => Output::Split,
+                OutputParam::Mix => Output::Mix,
+                OutputParam::Bass => Output::Bass,
+            },
         }
     }
 }

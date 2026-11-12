@@ -10,9 +10,19 @@ pub enum Feel {
     Smooth,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Output {
+    /// Guitar on the main output, bass layer on the aux output.
+    Split,
+    /// Guitar and bass layer together on the main output.
+    Mix,
+    /// Only the bass layer on the main output.
+    Bass,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
-    /// How much of the bass layer is added, 0 to 1.
+    /// Bass layer output level, 0 to 1.
     pub blend: f64,
     pub tone_hz: f64,
     pub gate_db: f64,
@@ -23,7 +33,7 @@ pub struct Settings {
     pub level: f64,
     /// 0 to 2, where 0 bypasses the drive.
     pub drive: f64,
-    pub dry: bool,
+    pub output: Output,
 }
 
 impl Default for Settings {
@@ -37,7 +47,7 @@ impl Default for Settings {
             feel: Feel::Raw,
             level: 0.7,
             drive: 0.0,
-            dry: true,
+            output: Output::Split,
         }
     }
 }
@@ -157,15 +167,18 @@ impl Engine {
         self.settings = settings;
     }
 
-    pub fn process(&mut self, left: &mut [f32], right: &mut [f32]) {
-        for (l, r) in left.iter_mut().zip(right.iter_mut()) {
-            let (out_l, out_r) = self.tick(*l as f64, *r as f64);
+    /// Processes the main buffers in place and writes the bass layer to
+    /// `bass`, which must be as long as `left`.
+    pub fn process(&mut self, left: &mut [f32], right: &mut [f32], bass: &mut [f32]) {
+        for ((l, r), b) in left.iter_mut().zip(right.iter_mut()).zip(bass.iter_mut()) {
+            let (out_l, out_r, out_b) = self.tick(*l as f64, *r as f64);
             *l = out_l as f32;
             *r = out_r as f32;
+            *b = out_b as f32;
         }
     }
 
-    fn tick(&mut self, in_l: f64, in_r: f64) -> (f64, f64) {
+    fn tick(&mut self, in_l: f64, in_r: f64) -> (f64, f64, f64) {
         let s = self.settings;
         let mono = (in_l + in_r) * 0.5;
 
@@ -231,9 +244,13 @@ impl Engine {
         self.gate_sm += (gate - self.gate_sm) * coef;
         let gain = self.gate_sm * s.level * if s.stomp { 1.0 } else { 0.0 };
 
-        let out = self.shape(self.held_bass * self.held_gain, s);
-        let dry = if s.dry { 1.0 } else { 0.0 };
-        let result = (self.held_dry[0] * dry + out * s.blend, self.held_dry[1] * dry + out * s.blend);
+        let bass_out = self.shape(self.held_bass * self.held_gain, s) * s.blend;
+        let [dry_l, dry_r] = self.held_dry;
+        let result = match s.output {
+            Output::Split => (dry_l, dry_r, bass_out),
+            Output::Mix => (dry_l + bass_out, dry_r + bass_out, bass_out),
+            Output::Bass => (bass_out, bass_out, bass_out),
+        };
 
         self.held_bass = bass;
         self.held_gain = gain;

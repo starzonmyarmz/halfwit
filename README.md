@@ -1,11 +1,12 @@
 # Halfwit
 
-![Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, feel and dry toggles, a gate panel, and a footswitch](docs/halfwit.jpg)
+<img src="docs/halfwit.jpg" width="293" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel, and a footswitch">
 
-An octave-divider bass layer for guitar, as a VST3 and CLAP plugin for
-macOS and Windows. It's for two-piece bands with no bass player: it
-fakes the missing bass from the guitar signal, one octave down, and
-blends it under the dry guitar.
+An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
+for macOS and Windows. It's for two-piece bands with no bass player: it
+builds a bass part from the guitar signal, one octave down, and sends it
+out a separate Bass output so it can go to its own track, with its own
+amp, while the guitar carries on untouched.
 
 It's a digital take on the old flip-flop divider pedals, not a pitch
 shifter. Single notes and riffs track tightly; chords turn to mush, and
@@ -18,8 +19,9 @@ that's part of the sound.
 2. Every rising crossing flips a square wave, which halves the
    frequency. In Smooth feel, the square drives a rounded wave instead.
 3. A gate silences the layer between notes, then drive, a two-pole
-   low-pass (Tone) and a DC blocker shape it before it's blended with
-   the dry signal.
+   low-pass (Tone) and a DC blocker shape it.
+4. The Output selector decides where it goes: by default the guitar
+   leaves the main output and the bass leaves the Bass aux output.
 
 The square's edges are anti-aliased with PolyBLEP. That correction
 needs one sample of lookahead, so Halfwit reports one sample of
@@ -30,17 +32,33 @@ latency, which hosts compensate for.
 | Control | Range | What it does |
 |---|---|---|
 | Level | 0–100% | Bass layer level going into the drive |
-| Blend | 0–100% | How much of the bass layer is added to the output |
+| Blend | 0–100% | Bass layer output level |
 | Tone | 40 Hz–2 kHz | Low-pass cutoff on the bass layer |
 | Drive | 0–200% | Saturates the bass layer and hides divider glitches |
 | Feel | Raw / Smooth | Raw is the hard square; Smooth is rounder, closer to a sine |
-| Dry | On / Off | Turn off to output only the bass layer |
+| Output | Split / Mix / Bass | Split: guitar on the main output, bass on the Bass output. Mix: both on the main output, like an octave pedal. Bass: only the bass, on the main output |
 | Gate: Thresh | −80–0 dB | Input level below which the bass layer shuts off |
 | Gate: Rel | 1–500 ms | How long the gate stays open after the input drops |
-| Footswitch | On / Off | Turns the bass layer on and off; dry still passes |
+| Footswitch | On / Off | Turns the bass layer on and off; the guitar still passes |
 
 Drag a knob up or down (hold Shift for fine moves), scroll, or use the
-arrow keys. Double-click a knob to reset it.
+arrow keys. Double-click a knob to reset it. Click the Output selector
+to step through its positions.
+
+## Routing the bass to its own track
+
+The Bass output is a second stereo bus. In REAPER:
+
+1. Put Halfwit first on the guitar track, and set the track to 4
+   channels (the routing button → Track channels). REAPER sends the Bass
+   output to channels 3–4, and plugins after Halfwit, like an amp sim,
+   only touch 1–2.
+2. Make a Bass track, and add a send to it from the guitar track:
+   audio from channels 3–4 into 1–2, post-FX.
+3. Put a bass amp on the Bass track.
+
+In hosts without multi-output support, use Mix, or Bass on a duplicate
+of the guitar track.
 
 ## Tips
 
@@ -49,8 +67,6 @@ arrow keys. Double-click a knob to reset it.
   Palm mutes and power chords work; full chords won't.
 - Set Gate: Thresh just above your noise floor, especially with
   single-coil pickups, or hum will keep the divider chattering.
-- For a separate bass tone, turn Dry off on a duplicate of the guitar
-  track and put a bass amp after it.
 
 ## Installing
 
@@ -76,8 +92,9 @@ scripts/clap-validator.sh target/bundled/Halfwit.clap
   with `HALFWIT_BLESS=1` to rewrite them, then listen to the new files
   before committing.
 - Synthetic tests check octave tracking from low E to high E, the gate
-  closing after a note, footswitch-off passing dry through at the
-  reported latency, and finite output from 22.05 to 192 kHz.
+  closing after a note, footswitch-off passing the guitar through at
+  the reported latency, Split and Mix routing, and finite output from
+  22.05 to 192 kHz.
 
 ## Working on the UI
 

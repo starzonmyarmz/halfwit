@@ -19,11 +19,13 @@ static PAGE: editor::Page = editor::Page {
 pub struct Halfwit {
     params: Arc<HalfwitParams>,
     engine: Engine,
+    /// Takes the bass layer when the host gives no aux output.
+    scratch: Vec<f32>,
 }
 
 impl Default for Halfwit {
     fn default() -> Self {
-        Self { params: Arc::new(HalfwitParams::default()), engine: Engine::new(48_000.0) }
+        Self { params: Arc::new(HalfwitParams::default()), engine: Engine::new(48_000.0), scratch: Vec::new() }
     }
 }
 
@@ -34,11 +36,26 @@ impl Plugin for Halfwit {
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[AudioIOLayout {
-        main_input_channels: NonZeroU32::new(2),
-        main_output_channels: NonZeroU32::new(2),
-        ..AudioIOLayout::const_default()
-    }];
+    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
+        AudioIOLayout {
+            main_input_channels: NonZeroU32::new(2),
+            main_output_channels: NonZeroU32::new(2),
+            aux_output_ports: &[new_nonzero_u32(2)],
+            names: PortNames {
+                layout: Some("Guitar + bass"),
+                main_input: Some("Guitar"),
+                main_output: Some("Guitar"),
+                aux_inputs: &[],
+                aux_outputs: &["Bass"],
+            },
+            ..AudioIOLayout::const_default()
+        },
+        AudioIOLayout {
+            main_input_channels: NonZeroU32::new(2),
+            main_output_channels: NonZeroU32::new(2),
+            ..AudioIOLayout::const_default()
+        },
+    ];
 
     type Editor = editor::WebEditor;
     type SysExMessage = ();
@@ -59,6 +76,7 @@ impl Plugin for Halfwit {
         context: &mut impl ActivateContext<Self>,
     ) -> bool {
         context.set_latency_samples(LATENCY);
+        self.scratch.resize(buffer_config.max_buffer_size as usize, 0.0);
         if self.engine.sample_rate() != buffer_config.sample_rate {
             self.engine = Engine::new(buffer_config.sample_rate);
         }
@@ -72,12 +90,22 @@ impl Plugin for Halfwit {
     fn process(
         &mut self,
         buffer: &mut Buffer,
-        _aux: &mut AuxiliaryBuffers,
+        aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         self.engine.set(self.params.settings());
-        if let [left, right] = buffer.as_slice() {
-            self.engine.process(left, right);
+        let [left, right] = buffer.as_slice() else {
+            return ProcessStatus::Normal;
+        };
+        match aux.outputs.first_mut().map(|b| b.as_slice()) {
+            Some([bass_l, bass_r]) => {
+                self.engine.process(left, right, bass_l);
+                bass_r.copy_from_slice(bass_l);
+            }
+            _ => {
+                let bass = &mut self.scratch[..left.len()];
+                self.engine.process(left, right, bass);
+            }
         }
         ProcessStatus::Normal
     }

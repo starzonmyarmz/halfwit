@@ -158,6 +158,7 @@
   }
 
   .knob {
+    --sweep: 270deg;
     position: relative;
     inline-size: var(--size);
     aspect-ratio: 1;
@@ -176,7 +177,7 @@
 
   .knob .skirt {
     inset: 0;
-    rotate: calc(var(--turn) * 270deg - 135deg);
+    rotate: calc(var(--turn) * var(--sweep) - var(--sweep) / 2);
     background:
       radial-gradient(circle, transparent 60%, rgb(0 0 0 / 0.5) 100%),
       repeating-conic-gradient(var(--knob) 0 5deg, var(--knob-hi) 5deg 10deg);
@@ -192,7 +193,7 @@
 
   .knob .pointer {
     inset: 0;
-    rotate: calc(var(--turn) * 270deg - 135deg);
+    rotate: calc(var(--turn) * var(--sweep) - var(--sweep) / 2);
 
     &::before {
       content: "";
@@ -229,6 +230,28 @@
         background: var(--ink);
       }
       &.major::before { scale: 1.5; }
+    }
+  }
+
+  .control[data-positions] {
+    gap: 24px;
+  }
+
+  .positions {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    & span {
+      position: absolute;
+      translate: -50% -50%;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      color: var(--ink-soft);
+      transition: color 120ms;
+
+      &.on { color: var(--ink); }
     }
   }
 
@@ -452,7 +475,7 @@
 <body>
 <main class="pedal" aria-label="Halfwit">
   <span class="screw"></span><span class="screw"></span><span class="screw"></span><span class="screw"></span>
-  <div class="jacks" aria-hidden="true"><span>◂ OUT</span><span>IN ◂</span></div>
+  <div class="jacks" aria-hidden="true"><span>◂ OUT</span><span>◂ BASS</span><span>IN ◂</span></div>
 
   <div class="row top">
     <div class="control" data-knob="level" style="--size: 60px"></div>
@@ -464,7 +487,7 @@
     <div class="control" data-knob="drive" style="--size: 50px"></div>
     <div class="switches">
       <div data-toggle="feel" data-top="Raw" data-bottom="Smooth"></div>
-      <div data-toggle="dry" data-top="On" data-bottom="Off"></div>
+      <div class="control" data-knob="output" data-positions="Split Mix Bass" style="--size: 38px"></div>
     </div>
     <div class="trim" role="group" aria-label="Gate">
       <span class="label" aria-hidden="true">Gate</span>
@@ -487,7 +510,7 @@
       <path class="in" d="M0 9 C 6 0, 13 0, 19 9 S 32 18, 38 9 S 51 0, 57 9 S 70 18, 76 9 S 89 0, 95 9 S 108 18, 114 9 S 127 0, 133 9 S 146 18, 152 9 S 165 0, 171 9 S 184 18, 190 9"/>
       <path d="M0 32 V 22 H 38 V 32 H 76 V 22 H 114 V 32 H 152 V 22 H 190"/>
     </svg>
-    <span class="tagline">OCTAVE DIVIDER · BASS LAYER</span>
+    <span class="tagline">OCTAVE DIVIDER · BASS SPLITTER</span>
   </div>
 
   <div class="stomp-zone">
@@ -538,15 +561,37 @@
     knob.setAttribute("aria-label", p.name);
     knob.setAttribute("aria-valuemin", "0");
     knob.setAttribute("aria-valuemax", "1");
-    const ticks = document.createElement("div");
-    ticks.className = "ticks";
-    for (let i = 0; i <= 10; i++) {
-      const tick = document.createElement("i");
-      tick.style.rotate = `${-135 + i * 27}deg`;
-      if (i === 0 || i === 5 || i === 10) tick.className = "major";
-      ticks.append(tick);
+    const positions = host.dataset.positions?.split(" ") ?? [];
+    const sweep = positions.length ? 120 : 270;
+    knob.style.setProperty("--sweep", `${sweep}deg`);
+    const angle = (n) => n * sweep - sweep / 2;
+    const marks = [];
+    if (positions.length) {
+      const size = parseFloat(host.style.getPropertyValue("--size"));
+      const radius = size / 2 + 16;
+      const ring = document.createElement("div");
+      ring.className = "positions";
+      positions.forEach((name, i) => {
+        const a = (angle(i / (positions.length - 1)) * Math.PI) / 180;
+        const mark = document.createElement("span");
+        mark.textContent = name.toUpperCase();
+        mark.style.left = `${Math.round(size / 2 + radius * Math.sin(a))}px`;
+        mark.style.top = `${Math.round(size / 2 - radius * Math.cos(a))}px`;
+        ring.append(mark);
+        marks.push(mark);
+      });
+      knob.append(ring);
+    } else {
+      const ticks = document.createElement("div");
+      ticks.className = "ticks";
+      for (let i = 0; i <= 10; i++) {
+        const tick = document.createElement("i");
+        tick.style.rotate = `${angle(i / 10)}deg`;
+        if (i === 0 || i === 5 || i === 10) tick.className = "major";
+        ticks.append(tick);
+      }
+      knob.append(ticks);
     }
-    knob.append(ticks);
     for (const part of ["skirt", "cap", "pointer"]) {
       const el = document.createElement("div");
       el.className = part;
@@ -561,6 +606,7 @@
       knob.setAttribute("aria-valuenow", p.value.toFixed(4));
       knob.setAttribute("aria-valuetext", p.text);
       value.textContent = p.text;
+      marks.forEach((mark, i) => mark.classList.toggle("on", i === Math.round(p.value * p.steps)));
     });
 
     const stepped = p.steps > 0;
@@ -576,10 +622,12 @@
       bridge({ type: "begin", id });
       let raw = p.value;
       let lastY = e.clientY;
+      let moved = false;
       const move = (ev) => {
         const fine = ev.shiftKey ? 0.15 : 1;
         raw = Math.min(1, Math.max(0, raw + ((lastY - ev.clientY) / 200) * fine));
         lastY = ev.clientY;
+        moved = true;
         const next = snap(raw);
         if (next !== p.value) setParam(id, next);
       };
@@ -589,6 +637,7 @@
         knob.removeEventListener("pointercancel", up);
         host.classList.remove("active");
         dragging.delete(id);
+        if (!moved && positions.length) setParam(id, p.value >= 1 ? 0 : snap(p.value + stepSize));
         bridge({ type: "end", id });
       };
       knob.addEventListener("pointermove", move);
@@ -617,8 +666,8 @@
 
   // ---------- toggles ----------
 
-  // A lever is up for Raw (feel = 0) and for Dry on (dry = 1).
-  const upValue = { feel: 0, dry: 1 };
+  // A lever is up for Raw (feel = 0).
+  const upValue = { feel: 0 };
 
   function buildToggle(host) {
     const id = host.dataset.toggle;
@@ -732,7 +781,7 @@
       { id: "gate", name: "Gate", steps: 0, default: 35 / 80, text: (n) => `${lerp(-80, 0, n).toFixed(1)} dB` },
       { id: "release", name: "Release", steps: 0, default: Math.pow(99 / 499, 0.5), text: (n) => `${Math.round(skew(1, 500, n, 0.5))} ms` },
       { id: "feel", name: "Feel", steps: 1, options: ["Raw", "Smooth"], default: 0, text: (n) => n < 0.5 ? "Raw" : "Smooth" },
-      { id: "dry", name: "Dry", steps: 1, options: ["Off", "On"], default: 1, text: (n) => n < 0.5 ? "Off" : "On" },
+      { id: "output", name: "Output", steps: 2, options: ["Split", "Mix", "Bass"], default: 0, text: (n) => ["Split", "Mix", "Bass"][Math.round(n * 2)] },
       { id: "stomp", name: "Stomp", steps: 1, options: ["Off", "On"], default: 1, text: (n) => n < 0.5 ? "Off" : "On" },
     ];
     const values = Object.fromEntries(specs.map((s) => [s.id, s.default]));
