@@ -1,5 +1,5 @@
 #!/bin/sh
-# Usage: scripts/clap-validator.sh target/bundled/Example.clap
+# Usage: scripts/clap-validator.sh target/bundled/Halfwit.clap
 set -eu
 
 version=0.4.1

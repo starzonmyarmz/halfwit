@@ -1,56 +1,123 @@
-# Plugin template
+# Halfwit
 
-A starting point for VST3 + CLAP plugins in Rust for macOS and Windows,
-built with [nice-plug](https://codeberg.org/RustAudio/nice-plug), with the
-build and release setup from [Patina](https://github.com/starzonmyarmz/patina).
-The plugin itself is a gain knob, there to prove the setup works.
+![Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, feel and dry toggles, a gate panel, and a footswitch](docs/halfwit.jpg)
 
-It pins the same nice-plug fork as Patina
-([starzonmyarmz/nice-plug](https://github.com/starzonmyarmz/nice-plug/tree/patina)),
-which adds `ActivateContext::gui_context()` so MIDI controllers can set
-parameters before the editor opens.
+An octave-divider bass layer for guitar, as a VST3 and CLAP plugin for
+macOS and Windows. It's for two-piece bands with no bass player: it
+fakes the missing bass from the guitar signal, one octave down, and
+blends it under the dry guitar.
 
-## Starting a plugin
+It's a digital take on the old flip-flop divider pedals, not a pitch
+shifter. Single notes and riffs track tightly; chords turn to mush, and
+that's part of the sound.
 
-Click **Use this template** on GitHub, then rename `Example`:
+## How it works
 
-| What | Where |
-|---|---|
-| Crate name (`example`) | `plugin/Cargo.toml`, `bundler.toml`, `CRATE` in both workflows, `crate` in `scripts/install.sh` |
-| Display name (`Example`) | `bundler.toml`, `NAME` in `plugin/src/lib.rs`, `PLUGIN` in both workflows, `INSTALL.txt` |
-| Plugin IDs | `CLAP_ID` and `VST3_CLASS_ID` (exactly 16 bytes) in `plugin/src/lib.rs`. These must be unique, and must never change after a release. |
-| Description, features, subcategories | `ClapPlugin` and `Vst3Plugin` in `plugin/src/lib.rs` |
+1. A band-limited copy of the input feeds a zero-crossing detector with
+   hysteresis, so harmonics and string noise don't trigger it.
+2. Every rising crossing flips a square wave, which halves the
+   frequency. In Smooth feel, the square drives a rounded wave instead.
+3. A gate silences the layer between notes, then drive, a two-pole
+   low-pass (Tone) and a DC blocker shape it before it's blended with
+   the dry signal.
+
+The square's edges are anti-aliased with PolyBLEP. That correction
+needs one sample of lookahead, so Halfwit reports one sample of
+latency, which hosts compensate for.
+
+## Controls
+
+| Control | Range | What it does |
+|---|---|---|
+| Level | 0–100% | Bass layer level going into the drive |
+| Blend | 0–100% | How much of the bass layer is added to the output |
+| Tone | 40 Hz–2 kHz | Low-pass cutoff on the bass layer |
+| Drive | 0–200% | Saturates the bass layer and hides divider glitches |
+| Feel | Raw / Smooth | Raw is the hard square; Smooth is rounder, closer to a sine |
+| Dry | On / Off | Turn off to output only the bass layer |
+| Gate: Thresh | −80–0 dB | Input level below which the bass layer shuts off |
+| Gate: Rel | 1–500 ms | How long the gate stays open after the input drops |
+| Footswitch | On / Off | Turns the bass layer on and off; dry still passes |
+
+Drag a knob up or down (hold Shift for fine moves), scroll, or use the
+arrow keys. Double-click a knob to reset it.
+
+## Tips
+
+- Put Halfwit before your amp sim, like a pedal.
+- The detector tracks best on the neck pickup with clean, single notes.
+  Palm mutes and power chords work; full chords won't.
+- Set Gate: Thresh just above your noise floor, especially with
+  single-coil pickups, or hum will keep the divider chattering.
+- For a separate bass tone, turn Dry off on a duplicate of the guitar
+  track and put a bass amp after it.
+
+## Installing
+
+Download the zip from
+[Releases](https://github.com/starzonmyarmz/halfwit/releases) and follow
+`INSTALL.txt` inside it.
 
 ## Building
 
 ```sh
-cargo xtask bundle example --release       # target/bundled/Example.{vst3,clap}
+cargo xtask bundle halfwit --release       # target/bundled/Halfwit.{vst3,clap}
 scripts/install.sh                         # bundle, sign ad hoc and install on macOS
-scripts/clap-validator.sh target/bundled/Example.clap
+scripts/clap-validator.sh target/bundled/Halfwit.clap
 ```
+
+## Tests
+
+`cargo test` runs the engine offline:
+
+- A 3-second guitar DI (`plugin/tests/di/riff.wav`) is rendered through
+  both feels and compared against stored renders in
+  `plugin/tests/golden`. After an intended change to the sound, rerun
+  with `HALFWIT_BLESS=1` to rewrite them, then listen to the new files
+  before committing.
+- Synthetic tests check octave tracking from low E to high E, the gate
+  closing after a note, footswitch-off passing dry through at the
+  reported latency, and finite output from 22.05 to 192 kHz.
+
+## Working on the UI
+
+The editor is a webview showing `ui/index.html`, which is compiled into
+the plugin. Without the plugin, the page runs against a mock, so you can
+work on it in a browser:
+
+```sh
+cd ui && python3 -m http.server 8765    # open http://127.0.0.1:8765
+```
+
+To load the page live in the plugin, set `HALFWIT_UI_URL` to that URL
+before starting the host.
+
+`plugin/src/editor.rs` and `plugin/src/bridge.rs` contain nothing
+specific to Halfwit: the page's size and HTML come from `PAGE` in
+`lib.rs`, and the bridge works with any `#[derive(Params)]` struct.
 
 ## CI and releases
 
-- `check.yml` runs on pushes to main and on PRs: the tests and clap-validator
-  on macOS, and clap-validator on the Windows build.
-- `release.yml` runs on `vX.Y.Z` tags. The tag must match `version` in the
-  root `Cargo.toml`. It builds a universal macOS bundle and a Windows bundle,
-  validates both, and publishes `Example-X.Y.Z.zip` with `INSTALL.txt`. A
-  version with a suffix (`1.0.0-beta.1`) becomes a prerelease.
+- `check.yml` runs on pushes to main and on PRs: the tests and
+  clap-validator on macOS, and clap-validator on the Windows build.
+- `release.yml` runs on `vX.Y.Z` tags. The tag must match `version` in
+  the root `Cargo.toml`. It builds a universal macOS bundle and a
+  Windows bundle, validates both, and publishes `Halfwit-X.Y.Z.zip`
+  with `INSTALL.txt`.
 
 To release: bump `version` in `Cargo.toml`, commit, then
 `git tag vX.Y.Z && git push origin main vX.Y.Z`.
 
-## Upgrading nice-plug
+## Built with
 
-Rebase the fork's `patina` branch onto newer nice-plug, push it, and update
-the `rev` in `plugin/Cargo.toml` and `xtask/Cargo.toml`.
-
-## Adding a webview editor or a standalone app
-
-Copy them from Patina (`plugin/src/editor.rs`, `plugin/src/chrome.rs`,
-`app/`). They aren't here yet because they're built around Patina's
-parameters, and the reusable shape should come from the second plugin that
-needs them. Bring along the `[profile.dev.package.*]` overrides in Patina's
-root `Cargo.toml`: debug builds otherwise abort when old objc-based crates
-message nil.
+- [nice-plug](https://codeberg.org/RustAudio/nice-plug), pinned to
+  [a fork](https://github.com/starzonmyarmz/nice-plug/tree/patina) that
+  adds `ActivateContext::gui_context()`. To upgrade, rebase the fork's
+  `patina` branch, push it, and update the `rev` in `plugin/Cargo.toml`
+  and `xtask/Cargo.toml`.
+- [Jost](https://github.com/indestructible-type/Jost) by Owen Earl,
+  under the SIL Open Font License (`ui/fonts/OFL.txt`).
+- Started from
+  [plugin-template](https://github.com/starzonmyarmz/plugin-template),
+  with the editor from
+  [Patina](https://github.com/starzonmyarmz/patina).
