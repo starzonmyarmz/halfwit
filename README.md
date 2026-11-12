@@ -89,18 +89,11 @@ scripts/clap-validator.sh target/bundled/Halfwit.clap
 
 ## Tests
 
-`cargo test` runs the engine offline:
-
-- A 3-second guitar DI (`plugin/tests/di/riff.wav`) is rendered through
-  both feels and compared against stored renders in
-  `plugin/tests/golden`. After an intended change to the sound, rerun
-  with `HALFWIT_BLESS=1` to rewrite them, then listen to the new files
-  before committing.
-- Synthetic tests check octave tracking from low E to high E, the gate
-  closing after a note, a pick scrape not sounding the bass, Dynamics
-  following the playing level, footswitch-off passing the guitar
-  through at the reported latency, Split and Mix routing, and finite
-  output from 22.05 to 192 kHz.
+`cargo test` runs the engine offline: a guitar DI rendered against
+stored golden renders, plus synthetic tests for tracking, the gate,
+routing and sample rates. After an intended change to the sound, rerun
+with `HALFWIT_BLESS=1` to rewrite the renders, and listen to them before
+committing.
 
 ## Working on the UI
 
@@ -115,10 +108,6 @@ cd ui && python3 -m http.server 8765    # open http://127.0.0.1:8765
 To load the page live in the plugin, set `HALFWIT_UI_URL` to that URL
 before starting the host.
 
-`plugin/src/editor.rs` and `plugin/src/bridge.rs` contain nothing
-specific to Halfwit: the page's size and HTML come from `PAGE` in
-`lib.rs`, and the bridge works with any `#[derive(Params)]` struct.
-
 ## CI and releases
 
 - `check.yml` runs on pushes to main and on PRs: the tests and
@@ -128,16 +117,11 @@ specific to Halfwit: the page's size and HTML come from `PAGE` in
   Windows bundle, validates both, and publishes `Halfwit-X.Y.Z.zip`
   with `INSTALL.txt`.
 
-To release: bump `version` in `Cargo.toml`, commit, then
-`git tag vX.Y.Z && git push origin main vX.Y.Z`.
-
 ## Built with
 
 - [nice-plug](https://codeberg.org/RustAudio/nice-plug), pinned to
   [a fork](https://github.com/starzonmyarmz/nice-plug/tree/patina) that
-  adds `ActivateContext::gui_context()`. To upgrade, rebase the fork's
-  `patina` branch, push it, and update the `rev` in `plugin/Cargo.toml`
-  and `xtask/Cargo.toml`.
+  adds `ActivateContext::gui_context()`.
 - [Jost](https://github.com/indestructible-type/Jost) by Owen Earl,
   under the SIL Open Font License (`ui/fonts/OFL.txt`).
 - Started from
