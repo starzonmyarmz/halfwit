@@ -30,12 +30,40 @@ pub struct HalfwitParams {
     pub gate: FloatParam,
     #[id = "release"]
     pub release: FloatParam,
+    #[id = "note"]
+    pub note: IntParam,
     #[id = "feel"]
     pub feel: EnumParam<FeelParam>,
     #[id = "output"]
     pub output: EnumParam<OutputParam>,
     #[id = "stomp"]
     pub stomp: BoolParam,
+}
+
+/// Gate: Note runs from E2 to E5 in semitones, as MIDI notes, and one past
+/// the top is Off.
+const NOTE_LOW: i32 = 40;
+const NOTE_OFF: i32 = 77;
+const NOTE_NAMES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+fn note_to_string(v: i32) -> String {
+    if v >= NOTE_OFF {
+        "Off".into()
+    } else {
+        format!("{}{}", NOTE_NAMES[v.rem_euclid(12) as usize], v.div_euclid(12) - 1)
+    }
+}
+
+fn string_to_note(s: &str) -> Option<i32> {
+    let s = s.trim();
+    if s.eq_ignore_ascii_case("off") {
+        return Some(NOTE_OFF);
+    }
+    let split = s.find(|c: char| c == '-' || c.is_ascii_digit())?;
+    let (name, octave) = s.split_at(split);
+    let pitch = NOTE_NAMES.iter().position(|n| n.eq_ignore_ascii_case(name))? as i32;
+    let midi = (octave.parse::<i32>().ok()? + 1) * 12 + pitch;
+    Some(midi.clamp(NOTE_LOW, NOTE_OFF))
 }
 
 fn percent(name: &str, default: f32, max: f32) -> FloatParam {
@@ -70,6 +98,9 @@ impl Default for HalfwitParams {
             )
             .with_unit(" ms")
             .with_value_to_string(formatters::v2s_f32_rounded(0)),
+            note: IntParam::new("Note", NOTE_OFF, IntRange::Linear { min: NOTE_LOW, max: NOTE_OFF })
+                .with_value_to_string(std::sync::Arc::new(note_to_string))
+                .with_string_to_value(std::sync::Arc::new(string_to_note)),
             feel: EnumParam::new("Feel", FeelParam::Raw),
             output: EnumParam::new("Output", OutputParam::Split),
             stomp: BoolParam::new("Stomp", true),
@@ -92,11 +123,31 @@ impl HalfwitParams {
             level: self.level.value() as f64,
             drive: self.drive.value() as f64,
             dynamics: self.dynamics.value() as f64,
+            note_max_hz: match self.note.value() {
+                v if v >= NOTE_OFF => f64::INFINITY,
+                v => 440.0 * 2f64.powf((v - 69) as f64 / 12.0),
+            },
             output: match self.output.value() {
                 OutputParam::Split => Output::Split,
                 OutputParam::Mix => Output::Mix,
                 OutputParam::Bass => Output::Bass,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn note_names_round_trip() {
+        assert_eq!(note_to_string(40), "E2");
+        assert_eq!(note_to_string(57), "A3");
+        assert_eq!(note_to_string(NOTE_OFF), "Off");
+        for v in NOTE_LOW..=NOTE_OFF {
+            assert_eq!(string_to_note(&note_to_string(v)), Some(v));
+        }
+        assert_eq!(string_to_note("a#3"), Some(58));
     }
 }

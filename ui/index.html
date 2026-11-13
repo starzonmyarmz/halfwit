@@ -60,7 +60,7 @@
 
   .pedal {
     position: relative;
-    inline-size: 440px;
+    inline-size: 488px;
     block-size: 600px;
     border-radius: 26px;
     padding: 34px 30px 26px;
@@ -308,7 +308,7 @@
 
   .trim {
     display: grid;
-    grid-template-columns: repeat(3, auto);
+    grid-template-columns: repeat(4, auto);
     gap: 6px 16px;
     padding: 10px 12px 12px;
     border-radius: 10px;
@@ -495,6 +495,7 @@
       <div class="control" data-knob="gate" data-label="Thresh" style="--size: 30px"></div>
       <div class="control" data-knob="release" data-label="Rel" style="--size: 30px"></div>
       <div class="control" data-knob="dynamics" data-label="Dyn" style="--size: 30px"></div>
+      <div class="control" data-knob="note" data-label="Note" style="--size: 30px"></div>
     </div>
   </div>
 
@@ -785,6 +786,11 @@
       { id: "gate", name: "Gate", steps: 0, default: 35 / 80, text: (n) => `${lerp(-80, 0, n).toFixed(1)} dB` },
       { id: "dynamics", name: "Dynamics", steps: 0, default: 0.5, text: (n) => `${Math.round(n * 100)}%` },
       { id: "release", name: "Release", steps: 0, default: Math.pow(99 / 499, 0.5), text: (n) => `${Math.round(skew(1, 500, n, 0.5))} ms` },
+      { id: "note", name: "Note", steps: 37, default: 1, text: (n) => {
+        const midi = 40 + Math.round(n * 37);
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        return midi >= 77 ? "Off" : `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;
+      } },
       { id: "feel", name: "Feel", steps: 1, options: ["Raw", "Smooth"], default: 0, text: (n) => n < 0.5 ? "Raw" : "Smooth" },
       { id: "output", name: "Output", steps: 2, options: ["Split", "Mix", "Bass"], default: 0, text: (n) => ["Split", "Mix", "Bass"][Math.round(n * 2)] },
       { id: "stomp", name: "Stomp", steps: 1, options: ["Off", "On"], default: 1, text: (n) => n < 0.5 ? "Off" : "On" },

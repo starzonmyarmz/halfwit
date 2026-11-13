@@ -1,6 +1,6 @@
 # Halfwit
 
-<img src="docs/halfwit.jpg" width="324" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel, and a footswitch">
+<img src="docs/halfwit.jpg" width="357" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel with threshold, release, dynamics and note knobs, and a footswitch">
 
 An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
 for macOS and Windows. It's for two-piece bands with no bass player: it
@@ -44,6 +44,7 @@ latency, which hosts compensate for.
 | Gate: Thresh | −80–0 dB | Input level, below 700 Hz, under which the bass layer shuts off |
 | Gate: Rel | 1–500 ms | How long the gate stays open after the input drops |
 | Gate: Dyn | 0–100% | How far the bass layer follows your picking: 0% is a constant level, 100% tracks it fully up to −18 dBFS. Higher settings keep stray noises quiet |
+| Gate: Note | E2–E5, Off | The highest note the bass plays under. Higher notes shut it off, so it can follow riffs on the low strings and drop out for leads up the neck. Off by default |
 | Footswitch | On / Off | Turns the bass layer on and off; the guitar still passes |
 
 Drag a knob up or down (hold Shift for fine moves), scroll, or use the
@@ -72,6 +73,11 @@ of the guitar track.
   Palm mutes and power chords work; full chords won't.
 - Set Gate: Thresh just above your noise floor, especially with
   single-coil pickups, or hum will keep the divider chattering.
+- Gate: Note goes by pitch, not by string. Around G3–A3, the bass follows
+  the low strings in open position and drops out on the high strings,
+  but a low-string note high on the neck counts as high too. The bass
+  comes in about one cycle into a low note, and stops within about 20 ms
+  of a jump to a high one.
 - If pick scrapes or fret noise still come through, turn up Gate: Dyn
   so they come out quieter, then make up the level with Level or Blend.
 

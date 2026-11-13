@@ -39,6 +39,9 @@ pub struct Settings {
     /// 0 to 1: how far the bass layer follows the playing level, from a
     /// constant level at 0 to fully proportional at 1.
     pub dynamics: f64,
+    /// The highest note, in Hz, that the bass plays under. Notes above it
+    /// close the gate. Infinite turns this off.
+    pub note_max_hz: f64,
     pub output: Output,
 }
 
@@ -54,6 +57,7 @@ impl Default for Settings {
             level: 0.7,
             drive: 0.0,
             dynamics: 0.5,
+            note_max_hz: f64::INFINITY,
             output: Output::Split,
         }
     }
@@ -69,12 +73,18 @@ pub struct Engine {
     dc_r: f64,
     gate_att: f64,
     gate_rel_sm: f64,
+    note_rel_sm: f64,
     dyn_rel: f64,
     dyn_sm_a: f64,
     max_period: f64,
     lpf_a: f64,
     gate_thresh: f64,
     gate_rel: f64,
+    /// Note gate thresholds: closes above `note_close`, opens below
+    /// `note_open`, a quarter semitone either side of halfway between the
+    /// set note and the one above.
+    note_close: f64,
+    note_open: f64,
 
     det1: f64,
     det2: f64,
@@ -102,6 +112,11 @@ pub struct Engine {
     dyn_sm: f64,
     dc_x1: f64,
     dc_y1: f64,
+    note_ok: bool,
+    /// det_y's previous cycle length, to tell a steady note from noise.
+    det_last: f64,
+    /// Votes against `note_ok` in a row, from the band and from det_y.
+    note_votes: [u8; 2],
 
     /// The previous sample, held back for the next edge's correction.
     held_bass: f64,
@@ -121,12 +136,15 @@ impl Engine {
             dc_r: (-2.0 * PI * 10.0 / sr).exp(),
             gate_att: 1.0 - (-1.0 / (sr * 0.002)).exp(),
             gate_rel_sm: 1.0 - (-1.0 / (sr * 0.01)).exp(),
+            note_rel_sm: 1.0 - (-1.0 / (sr * 0.003)).exp(),
             dyn_rel: (-1.0 / (sr * 0.05)).exp(),
             dyn_sm_a: 1.0 - (-1.0 / (sr * 0.005)).exp(),
             max_period: (sr / 20.0).floor(),
             lpf_a: 0.0,
             gate_thresh: 0.0,
             gate_rel: 0.0,
+            note_close: f64::INFINITY,
+            note_open: f64::INFINITY,
             det1: 0.0,
             det2: 0.0,
             det_x1: 0.0,
@@ -153,6 +171,9 @@ impl Engine {
             dyn_sm: 0.0,
             dc_x1: 0.0,
             dc_y1: 0.0,
+            note_ok: true,
+            det_last: 0.0,
+            note_votes: [0; 2],
             held_bass: 0.0,
             held_gain: 0.0,
             held_dry: [0.0; 2],
@@ -192,6 +213,9 @@ impl Engine {
         self.dyn_sm = 0.0;
         self.dc_x1 = 0.0;
         self.dc_y1 = 0.0;
+        self.note_ok = true;
+        self.det_last = 0.0;
+        self.note_votes = [0; 2];
         self.held_bass = 0.0;
         self.held_gain = 0.0;
         self.held_dry = [0.0; 2];
@@ -204,6 +228,13 @@ impl Engine {
         self.lpf_a = (-2.0 * PI * tone / sr).exp();
         self.gate_thresh = 10f64.powf(settings.gate_db / 20.0);
         self.gate_rel = (-1000.0 / (settings.release_ms.max(1.0) * sr)).exp();
+        let boundary = settings.note_max_hz * 2f64.powf(0.5 / 12.0);
+        self.note_close = boundary * 2f64.powf(0.25 / 12.0);
+        self.note_open = boundary * 2f64.powf(-0.25 / 12.0);
+        if settings.note_max_hz.is_infinite() {
+            self.note_ok = true;
+            self.note_votes = [0; 2];
+        }
         self.settings = settings;
     }
 
@@ -236,6 +267,21 @@ impl Engine {
         self.det_since = (self.det_since + 1.0).min(self.max_period);
         if self.det_armed && self.det_y > det_hyst {
             self.det_armed = false;
+            // det_y follows a jump a few cycles before the divider's band
+            // does, so it switches Gate: Note sooner. It can read low notes
+            // an octave high, never low, so one reading under the note
+            // opens the gate. Readings over it only close the gate when
+            // they're well over an octave above the band, and steady, so
+            // a pick attack's noise doesn't cut the note it starts.
+            let since = self.det_since.max(8.0);
+            let hz = self.sample_rate / since;
+            let steady = (since / self.det_last - 1.0).abs() < 0.06;
+            self.det_last = since;
+            if hz < self.note_open {
+                self.vote_note(1, true);
+            } else if steady && hz > self.note_close && hz > 2.1 * self.sample_rate / self.period_sm {
+                self.vote_note(1, false);
+            }
             self.det_period = self.det_period * 0.7 + self.det_since.max(8.0) * 0.3;
             self.det_since = 0.0;
             self.retune_band();
@@ -271,6 +317,9 @@ impl Engine {
 
         self.since_rising = (self.since_rising + 1.0).min(self.max_period);
         if rising {
+            let hz = self.sample_rate / self.since_rising.max(8.0);
+            let ok = if self.note_ok { hz <= self.note_close } else { hz < self.note_open };
+            self.vote_note(0, ok);
             self.period_sm = self.period_sm * 0.7 + self.since_rising.max(8.0) * 0.3;
             self.since_rising = 0.0;
             self.retune_band();
@@ -309,8 +358,15 @@ impl Engine {
         // pick scrapes and fret noise barely register.
         let am = self.det_y.abs();
         self.gate_env = if am > self.gate_env { am } else { self.gate_env * self.gate_rel };
-        let gate = if self.gate_env > self.gate_thresh { 1.0 } else { 0.0 };
-        let coef = if gate > self.gate_sm { self.gate_att } else { self.gate_rel_sm };
+        let gate = if self.gate_env > self.gate_thresh && self.note_ok { 1.0 } else { 0.0 };
+        // Gate: Note cuts a note that's still ringing, so it fades faster.
+        let coef = if gate > self.gate_sm {
+            self.gate_att
+        } else if self.note_ok {
+            self.gate_rel_sm
+        } else {
+            self.note_rel_sm
+        };
         self.gate_sm += (gate - self.gate_sm) * coef;
 
         self.dyn_env = am.max(self.dyn_env * self.dyn_rel);
@@ -331,6 +387,23 @@ impl Engine {
         self.held_gain = gain;
         self.held_dry = [in_l, in_r];
         result
+    }
+
+    /// Each cycle, the band (`source` 0) and det_y (1) vote on whether the
+    /// note is under Gate: Note. Two in a row from either against the
+    /// current state switch it, so one stray crossing can't chop the bass,
+    /// except that one from det_y opens it.
+    fn vote_note(&mut self, source: usize, ok: bool) {
+        if ok == self.note_ok {
+            self.note_votes[source] = 0;
+        } else {
+            self.note_votes[source] += 1;
+            let needed = if source == 1 && ok { 1 } else { 2 };
+            if self.note_votes[source] >= needed {
+                self.note_ok = ok;
+                self.note_votes = [0; 2];
+            }
+        }
     }
 
     fn retune_band(&mut self) {

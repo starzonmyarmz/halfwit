@@ -259,3 +259,92 @@ fn dynamics_makes_the_bass_follow_the_playing_level() {
     assert!((ratio(0.0) - 1.0).abs() < 0.05, "Dynamics at 0 should keep a constant level, got {}", ratio(0.0));
     assert!(ratio(1.0) < 0.15, "Dynamics at 1 should follow a 20 dB drop, got {}", ratio(1.0));
 }
+
+fn note_hz(midi: i32) -> f64 {
+    440.0 * 2f64.powf((midi - 69) as f64 / 12.0)
+}
+
+fn under_a3(feel: Feel) -> Settings {
+    Settings { note_max_hz: note_hz(57), ..bass_only(feel) }
+}
+
+#[test]
+fn gate_note_silences_notes_above_it() {
+    // E2, A2, D3, G3, A3 play; A#3, B3, E4 don't.
+    for (midi, plays) in [(40, true), (45, true), (50, true), (55, true), (57, true), (58, false), (59, false), (64, false)] {
+        for feel in [Feel::Raw, Feel::Smooth] {
+            let out = render(&tone(note_hz(midi), 1.0, SR), SR, under_a3(feel));
+            let level = peak(&out[(SR / 2.0) as usize..]);
+            if plays {
+                assert!(level > 0.1, "MIDI {midi} {feel:?}: bass should play, peak {level}");
+            } else {
+                assert!(level < 1e-3, "MIDI {midi} {feel:?}: bass should be silent, peak {level}");
+            }
+        }
+    }
+}
+
+/// Milliseconds from `from` until the bass first passes `level`.
+fn ms_until_above(out: &[f32], from: usize, level: f32) -> f64 {
+    let at = out[from..].iter().position(|s| s.abs() > level).expect("bass never came in");
+    at as f64 * 1000.0 / SR as f64
+}
+
+/// Milliseconds from `from` until the bass last passes `level`, within `to`.
+fn ms_until_below(out: &[f32], from: usize, to: usize, level: f32) -> f64 {
+    let at = out[from..to].iter().rposition(|s| s.abs() > level).map_or(0, |i| i + 1);
+    at as f64 * 1000.0 / SR as f64
+}
+
+/// Leaves out the DC blocker settling after a note is cut, which is mostly
+/// below 10 Hz.
+fn above_30_hz(signal: &[f32]) -> Vec<f32> {
+    let a = (-2.0 * PI * 30.0 / SR as f64).exp();
+    let (mut x1, mut y1) = (0.0, 0.0);
+    signal
+        .iter()
+        .map(|&x| {
+            y1 = a * (y1 + x as f64 - x1);
+            x1 = x as f64;
+            y1 as f32
+        })
+        .collect()
+}
+
+#[test]
+fn gate_note_switches_within_a_few_cycles() {
+    // E4 (silent), E2 (plays), E4 again (silent). The gate opens on each
+    // attack before the pitch is known, so the high notes blip briefly.
+    let half = SR as usize / 2;
+    let mut input = tone(note_hz(64), 0.5, SR);
+    input.extend(tone(note_hz(40), 0.5, SR));
+    input.extend(tone(note_hz(64), 0.5, SR));
+    let out = above_30_hz(&render(&input, SR, under_a3(Feel::Raw)));
+    let first = ms_until_below(&out, 0, half, 0.1);
+    let opens = ms_until_above(&out, half, 0.1);
+    let closes = ms_until_below(&out, 2 * half, 3 * half, 0.1);
+    eprintln!("first high note {first:.1} ms, low note opens {opens:.1} ms, high note closes {closes:.1} ms");
+    assert!(first < 30.0, "bass sounded {first:.1} ms into the first high note");
+    assert!(opens < 30.0, "bass took {opens:.1} ms to come in on the low note");
+    assert!(closes < 30.0, "bass took {closes:.1} ms to stop on the high note");
+    for (from, to) in [(half / 2, half), (2 * half + half / 2, 3 * half)] {
+        assert!(peak(&out[from..to]) < 1e-3, "bass still sounding {} under a high note", peak(&out[from..to]));
+    }
+}
+
+#[test]
+fn gate_note_leaves_a_riff_under_it_alone() {
+    // The riff stays at G2 and below, so with Gate: Note on A3 nothing should be
+    // cut, pick attacks included.
+    let (input, sample_rate) = read_wav(&dir("di").join("riff.wav"));
+    let sr = sample_rate as f32;
+    let off = render(&input, sr, bass_only(Feel::Raw));
+    let on = render(&input, sr, Settings { note_max_hz: note_hz(57), ..bass_only(Feel::Raw) });
+    let rms = |s: &[f32]| (s.iter().map(|v| v * v).sum::<f32>() / s.len() as f32).sqrt();
+    let window = (sr * 0.05) as usize;
+    for (i, (a, b)) in off.chunks(window).zip(on.chunks(window)).enumerate() {
+        if rms(a) > 0.02 {
+            assert!(rms(b) > rms(a) * 0.8, "cut at {} ms: {} vs {}", i * 50, rms(b), rms(a));
+        }
+    }
+}
