@@ -5,7 +5,10 @@ description: Settle a plugin's look with the user before building its editor - t
 
 # Design kickoff
 
-Read the README's Design section first. Every choice here has to fit it.
+Read the Design section of the template's README first:
+`~/Code/plugin-template/README.md`, or
+https://github.com/starzonmyarmz/plugin-template#design if that isn't
+cloned. Every choice here has to fit it.
 Don't write the page until the user has picked the object, palette, art
 and font.
 
