@@ -81,6 +81,14 @@ pub struct Engine {
     det_x1: f64,
     det_y: f64,
     det_env: f64,
+    det_armed: bool,
+    det_since: f64,
+    det_period: f64,
+    band_hp_a: f64,
+    band_lp_a: f64,
+    band_hp: [f64; 4],
+    band_lp: [f64; 4],
+    band_env: f64,
     armed: bool,
     since_rising: f64,
     period_sm: f64,
@@ -124,6 +132,14 @@ impl Engine {
             det_x1: 0.0,
             det_y: 0.0,
             det_env: 0.0,
+            det_armed: false,
+            det_since: 0.0,
+            det_period: 0.0,
+            band_hp_a: 0.0,
+            band_lp_a: 0.0,
+            band_hp: [0.0; 4],
+            band_lp: [0.0; 4],
+            band_env: 0.0,
             armed: false,
             since_rising: 0.0,
             period_sm: 0.0,
@@ -156,9 +172,16 @@ impl Engine {
         self.det_x1 = 0.0;
         self.det_y = 0.0;
         self.det_env = 0.0;
+        self.det_armed = false;
+        self.det_since = 0.0;
+        self.det_period = self.sample_rate / 110.0;
+        self.band_hp = [0.0; 4];
+        self.band_lp = [0.0; 4];
+        self.band_env = 0.0;
         self.armed = false;
         self.since_rising = 0.0;
         self.period_sm = self.sample_rate / 110.0;
+        self.retune_band();
         self.div = false;
         self.phase = 0.0;
         self.lp1 = 0.0;
@@ -199,22 +222,49 @@ impl Engine {
         let s = self.settings;
         let mono = (in_l + in_r) * 0.5;
 
-        // The detector only sees a band-limited copy, with hysteresis scaled
-        // to its envelope, so harmonics and string noise don't add extra
-        // zero crossings.
+        // Zero crossings are counted on band-limited copies, with hysteresis
+        // scaled to their envelopes, so string noise doesn't add crossings.
         self.det1 = self.det1 * self.det_a + mono * (1.0 - self.det_a);
         self.det2 = self.det2 * self.det_a + self.det1 * (1.0 - self.det_a);
-        let prev_det = self.det_y;
         self.det_y = self.det_hp * (self.det_y + self.det2 - self.det_x1);
         self.det_x1 = self.det2;
         self.det_env = self.det_y.abs().max(self.det_env * self.det_rel);
-        let hyst = self.det_env * 0.2;
+        let det_hyst = self.det_env * 0.2;
+        if self.det_y < -det_hyst {
+            self.det_armed = true;
+        }
+        self.det_since = (self.det_since + 1.0).min(self.max_period);
+        if self.det_armed && self.det_y > det_hyst {
+            self.det_armed = false;
+            self.det_period = self.det_period * 0.7 + self.det_since.max(8.0) * 0.3;
+            self.det_since = 0.0;
+            self.retune_band();
+        }
+
+        // On low strings the second harmonic can outweigh the fundamental,
+        // doubling det_y's crossings. The divider counts a copy band-passed
+        // around its own pitch instead, which can't settle more than an
+        // octave below det_y's, or hum would capture it.
+        let mut x = self.det_y;
+        for i in 0..2 {
+            let y = self.band_hp_a * (self.band_hp[i + 2] + x - self.band_hp[i]);
+            self.band_hp[i] = x;
+            self.band_hp[i + 2] = y;
+            x = y;
+        }
+        let prev_band = self.band_lp[3];
+        for y in &mut self.band_lp {
+            *y = *y * self.band_lp_a + x * (1.0 - self.band_lp_a);
+            x = *y;
+        }
+        self.band_env = x.abs().max(self.band_env * self.det_rel);
+        let hyst = self.band_env * 0.2;
 
         let mut rising = false;
-        if self.det_y < -hyst {
+        if x < -hyst {
             self.armed = true;
         }
-        if self.armed && self.det_y > hyst {
+        if self.armed && x > hyst {
             rising = true;
             self.armed = false;
         }
@@ -223,6 +273,7 @@ impl Engine {
         if rising {
             self.period_sm = self.period_sm * 0.7 + self.since_rising.max(8.0) * 0.3;
             self.since_rising = 0.0;
+            self.retune_band();
             self.div = !self.div;
             if self.div {
                 self.phase = 0.0;
@@ -243,8 +294,8 @@ impl Engine {
                 if rising {
                     // The crossing fell between the previous sample and
                     // this one; spread the step over both (PolyBLEP).
-                    let span = self.det_y - prev_det;
-                    let at = if span > 0.0 { ((hyst - prev_det) / span).clamp(0.0, 1.0) } else { 1.0 };
+                    let span = x - prev_band;
+                    let at = if span > 0.0 { ((hyst - prev_band) / span).clamp(0.0, 1.0) } else { 1.0 };
                     let step = 2.0 * square;
                     self.held_bass += step * (1.0 - at) * (1.0 - at) * 0.5;
                     square - step * at * at * 0.5
@@ -280,6 +331,14 @@ impl Engine {
         self.held_gain = gain;
         self.held_dry = [in_l, in_r];
         result
+    }
+
+    fn retune_band(&mut self) {
+        let lowest = self.sample_rate / (2.0 * self.det_period);
+        let pitch = (self.sample_rate / self.period_sm).max(lowest);
+        let nyquist = self.sample_rate * 0.45;
+        self.band_hp_a = (-2.0 * PI * (lowest * 0.5).min(nyquist) / self.sample_rate).exp();
+        self.band_lp_a = (-2.0 * PI * pitch.min(nyquist) / self.sample_rate).exp();
     }
 
     fn shape(&mut self, mut bass: f64, s: Settings) -> f64 {

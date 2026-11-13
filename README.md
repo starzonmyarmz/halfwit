@@ -15,7 +15,9 @@ that's part of the sound.
 ## How it works
 
 1. A band-limited copy of the input feeds a zero-crossing detector with
-   hysteresis, so harmonics and string noise don't trigger it.
+   hysteresis, so harmonics and string noise don't trigger it. The
+   band follows the note's pitch, so the low strings' strong second
+   harmonic can't double the count and jump the bass up an octave.
 2. Every rising crossing flips a square wave, which halves the
    frequency. In Smooth feel, the square drives a rounded wave instead.
 3. A gate silences the layer between notes, and Dynamics makes it

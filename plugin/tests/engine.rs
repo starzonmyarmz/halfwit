@@ -58,11 +58,21 @@ fn bass_only(feel: Feel) -> Settings {
 }
 
 fn tone(freq: f64, seconds: f64, sample_rate: f32) -> Vec<f32> {
+    harmonics(freq, &[(1.0, 0.0), (0.5, 0.0), (0.25, 0.0)], seconds, sample_rate)
+}
+
+/// A note from (amplitude, phase) pairs for the fundamental and its
+/// harmonics in order.
+fn harmonics(freq: f64, partials: &[(f64, f64)], seconds: f64, sample_rate: f32) -> Vec<f32> {
     let sr = sample_rate as f64;
     (0..(seconds * sr) as usize)
         .map(|i| {
             let t = i as f64 / sr;
-            let x = (2.0 * PI * freq * t).sin() + 0.5 * (4.0 * PI * freq * t).sin() + 0.25 * (6.0 * PI * freq * t).sin();
+            let x: f64 = partials
+                .iter()
+                .enumerate()
+                .map(|(n, (amp, phase))| amp * (2.0 * PI * freq * (n + 1) as f64 * t + phase).sin())
+                .sum();
             (0.3 * x) as f32
         })
         .collect()
@@ -120,6 +130,36 @@ fn tracks_an_octave_down_across_the_neck() {
             assert!((got - want).abs() < want * 0.03, "{note} {feel:?}: expected {want:.1} Hz, got {got:.1} Hz");
         }
     }
+}
+
+#[test]
+fn tracks_low_notes_whose_second_harmonic_outweighs_the_fundamental() {
+    let partials = [
+        ("2nd harmonic twice the fundamental", [(0.5, 0.0), (1.0, 0.0), (0.6, 0.0)]),
+        ("2nd harmonic as loud, out of phase", [(1.0, 0.0), (1.0, 1.5), (0.5, 0.7)]),
+        ("2nd harmonic three times the fundamental", [(0.33, 0.0), (1.0, 0.8), (0.7, 0.3)]),
+    ];
+    for (note, freq) in [("open D in drop D", 73.42), ("low E", 82.41), ("A", 110.0)] {
+        for (shape, partials) in partials {
+            let out = render(&harmonics(freq, &partials, 2.0, SR), SR, bass_only(Feel::Raw));
+            let got = frequency(&out, SR);
+            let want = freq / 2.0;
+            assert!((got - want).abs() < want * 0.03, "{note}, {shape}: expected {want:.1} Hz, got {got:.1} Hz");
+        }
+    }
+}
+
+#[test]
+fn follows_a_jump_up_the_neck_through_hum() {
+    let mut input = tone(73.42, 1.0, SR);
+    input.extend(tone(659.26, 1.0, SR));
+    for (i, s) in input.iter_mut().enumerate() {
+        *s += (0.01 * (2.0 * PI * 60.0 * i as f64 / SR as f64).sin()) as f32;
+    }
+    let out = render(&input, SR, bass_only(Feel::Raw));
+    let got = frequency(&out[SR as usize..], SR);
+    let want = 659.26 / 2.0;
+    assert!((got - want).abs() < want * 0.03, "expected {want:.1} Hz, got {got:.1} Hz");
 }
 
 #[test]
