@@ -1,0 +1,38 @@
+name: Screenshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ui/**
+      - Cargo.toml
+      - plugin/src/lib.rs
+      - scripts/screenshot.*
+  workflow_dispatch:
+
+concurrency:
+  group: screenshot
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  screenshot:
+    if: github.repository != 'starzonmyarmz/plugin-template'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/screenshot.sh
+      - name: Commit the new screenshot
+        run: |
+          git add docs README.md
+          if git diff --cached --quiet; then
+            echo "The screenshot hasn't changed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Retake the screenshot"
+          git pull --rebase origin main
+          git push origin HEAD:main
