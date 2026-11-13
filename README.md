@@ -1,6 +1,6 @@
 # Halfwit
 
-<img src="docs/halfwit.jpg" width="357" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel with threshold, release, dynamics and note knobs, and a footswitch">
+<img src="docs/halfwit.jpg" width="325" alt="Halfwit, a mustard-yellow stompbox with a row of level, drive, tone and blend knobs, a feel toggle, an output selector, a gate panel with threshold, release, dynamics and note knobs, and a footswitch">
 
 An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
 for macOS and Windows. It's for two-piece bands with no bass player: it
