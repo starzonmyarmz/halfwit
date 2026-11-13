@@ -1,6 +1,6 @@
 # Halfwit
 
-<img src="docs/halfwit.jpg" width="325" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel, and a footswitch">
+<img src="docs/halfwit.jpg" width="324" alt="Halfwit, a mustard-yellow stompbox with level, blend, tone and drive knobs, a feel toggle, an output selector, a gate panel, and a footswitch">
 
 An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
 for macOS and Windows. It's for two-piece bands with no bass player: it
@@ -105,7 +105,8 @@ work on it in a browser:
 cd ui && python3 -m http.server 8765    # open http://127.0.0.1:8765
 ```
 
-To load the page live in the plugin, set `HALFWIT_UI_URL` to that URL
+Add `?version=1.2.0` to show a version other than `0.0.0`. To load
+the page live in the plugin, set `HALFWIT_UI_URL` to that URL
 before starting the host.
 
 ## CI and releases

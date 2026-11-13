@@ -12,6 +12,7 @@ static PAGE: editor::Page = editor::Page {
     title: "Halfwit",
     size: (488, 640),
     html: include_str!("../../ui/index.html"),
+    version: env!("CARGO_PKG_VERSION"),
     background: (24, 23, 22, 255),
     dev_url_var: "HALFWIT_UI_URL",
 };

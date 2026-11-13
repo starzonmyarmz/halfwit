@@ -460,6 +460,7 @@
     font-size: 7px;
     font-weight: 800;
     letter-spacing: 0.3em;
+    text-transform: uppercase;
     color: var(--ink-soft);
   }
 </style>
@@ -517,7 +518,7 @@
   <div class="stomp-zone">
     <span class="led" id="led"></span>
     <div class="stomp-wrap"><button class="stomp" id="stomp" aria-label="Stomp" aria-pressed="true"></button></div>
-    <span class="fine" aria-hidden="true">÷2 · TWO-PIECE APPROVED</span>
+    <span class="fine"><span aria-hidden="true">÷2 · TWO-PIECE APPROVED · </span><span id="version"></span></span>
   </div>
 </main>
 
@@ -747,6 +748,7 @@
     switch (msg.type) {
       case "key": return forwardKey(msg);
       case "init":
+        document.getElementById("version").textContent = `v${msg.version}`;
         params.clear();
         msg.params.forEach((p) => params.set(p.id, { ...p, value: p.default, text: "" }));
         if (!built) {
@@ -769,6 +771,7 @@
   // ---------- browser mock ----------
 
   function mockBridge() {
+    const version = new URLSearchParams(location.search).get("version") ?? "0.0.0";
     const lerp = (a, b, n) => a + (b - a) * n;
     const skew = (min, max, n, factor) => min + (max - min) * Math.pow(n, 1 / factor);
     const specs = [
@@ -795,7 +798,7 @@
     return (msg) => {
       switch (msg.type) {
         case "ready":
-          send({ type: "init", params: specs.map(({ text, ...rest }) => rest) });
+          send({ type: "init", version, params: specs.map(({ text, ...rest }) => rest) });
           sendValues(specs.map((s) => s.id));
           return;
         case "set":

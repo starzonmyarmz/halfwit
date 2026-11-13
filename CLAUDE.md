@@ -39,6 +39,8 @@ changed in the sound (levels, which notes or noises are affected).
   `PAGE.size` in `lib.rs` and `.pedal`'s `inline-size` in `ui/index.html`.
   Leave room for the Output selector's Split and Bass labels, which
   overflow its box.
+- The version, from the root `Cargo.toml`, ends the fine print by the
+  bottom edge (`÷2 · TWO-PIECE APPROVED · V0.1.0`).
 - The local preview server (`python3 -m http.server`) gets cached by the
   browser. Add a query string like `?v=2` after each edit.
 - After a visible UI change, retake `docs/halfwit.jpg`: capture the full

@@ -23,6 +23,7 @@ pub struct Page {
     pub title: &'static str,
     pub size: (u32, u32),
     pub html: &'static str,
+    pub version: &'static str,
     /// Shown until the page paints, as RGBA.
     pub background: (u8, u8, u8, u8),
     /// An env var that, when set to a dev server URL, loads the page from
@@ -111,7 +112,7 @@ impl Editor for WebEditor {
                         webview: None,
                         tx: Some(tx),
                         inbox,
-                        bridge: Bridge::new(params),
+                        bridge: Bridge::new(params, page.version),
                         ready: false,
                         page_has_focus: false,
                     }),
