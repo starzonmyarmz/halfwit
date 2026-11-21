@@ -14,13 +14,14 @@ the `alt` text gets updated.
 1. Run `cargo test` so `ui/mock.json` is known to match the plugin's
    parameters and defaults, and the shot shows the real controls at
    their defaults. If it's stale, rewrite it with `BLESS=1 cargo test`.
-2. Run `scripts/screenshot.sh`. It needs `pngquant`
-   (`brew install pngquant`). It renders the page against its mock in
-   WebKit at 2x and `PAGE.size`, with the version from `Cargo.toml`.
-   It drops the `html` and `body` backgrounds, so the object sits on
-   transparency with its shadow. Then it writes `docs/<name>.png` 852 px
-   tall, quantized with pngquant, and sets the README `<img>` `width` to
-   half its pixel width. An older `docs/<name>.jpg` is deleted and the
+2. Run `scripts/screenshot.sh`. It needs pngquant and ImageMagick
+   (`brew install pngquant imagemagick`). It renders the page against
+   its mock in WebKit at 2x and `PAGE.size`, with the version from
+   `Cargo.toml`, plus a margin for the drop shadow. It drops the `html`
+   and `body` backgrounds, so the object sits on transparency with its
+   shadow. Then it crops to what's visible, writes `docs/<name>.png`
+   852 px tall, quantized with pngquant, and sets the README `<img>`
+   `width` to half its pixel width. An older `docs/<name>.jpg` is deleted and the
    README `<img>` pointed at the PNG.
 3. Look at the PNG. If fonts haven't loaded, a knob is mid-glide or the
    mock's values are off, fix that and rerun it. To see the
