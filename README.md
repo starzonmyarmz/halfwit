@@ -1,6 +1,6 @@
 # Halfwit
 
-<img src="docs/halfwit.jpg" width="324" alt="Halfwit, a mustard-yellow stompbox with a row of level, drive, tone and blend knobs, a feel toggle, an output selector, a gate panel with threshold, release, dynamics and note knobs, and a footswitch">
+<img src="docs/halfwit.png" width="324" alt="Halfwit, a mustard-yellow stompbox with a row of level, drive, tone and blend knobs, a feel toggle, an output selector, a gate panel with threshold, release, dynamics and note knobs, and a footswitch">
 
 An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
 for macOS and Windows. It's for two-piece bands with no bass player: it
@@ -127,7 +127,7 @@ before starting the host.
   Windows bundle, validates both, and publishes `Halfwit-X.Y.Z.zip`
   with `INSTALL.txt`.
 - `screenshot.yml` runs on pushes to main that touch `ui/`, the version
-  or `plugin/src/lib.rs`. It retakes `docs/halfwit.jpg` with
+  or `plugin/src/lib.rs`. It retakes `docs/halfwit.png` with
   `scripts/screenshot.sh`, sets its width in the README, and commits both
   if the image changed.
 

@@ -23,6 +23,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      - run: brew install pngquant
       - run: scripts/screenshot.sh
       - name: Commit the new screenshot
         run: |

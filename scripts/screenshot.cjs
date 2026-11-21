@@ -18,9 +18,10 @@ const ui = path.join(__dirname, "..", "ui");
   });
   await page.goto(`http://ui.test/?version=${encodeURIComponent(version)}`);
   await page.waitForLoadState("networkidle");
+  await page.addStyleTag({ content: "html, body { background: transparent !important; }" });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(250);
-  await page.screenshot({ path: out });
+  await page.screenshot({ path: out, omitBackground: true });
   await browser.close();
 })().catch((error) => {
   console.error(error);

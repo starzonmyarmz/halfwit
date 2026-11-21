@@ -43,7 +43,7 @@ changed in the sound (levels, which notes or noises are affected).
   bottom edge (`÷2 · TWO-PIECE APPROVED · V0.1.0`).
 - The local preview server (`python3 -m http.server`) gets cached by the
   browser. Add a query string like `?v=2` after each edit.
-- After a visible UI change, retake `docs/halfwit.jpg` with the `screenshot`
+- After a visible UI change, retake `docs/halfwit.png` with the `screenshot`
   skill, so the PR shows it and the README's `alt` text stays right. The
   Screenshot workflow also retakes it on main, but can't update the
   `alt` text.
