@@ -4,10 +4,24 @@ const { webkit } = require("playwright");
 const [out, width, height, version] = process.argv.slice(2);
 const ui = path.join(__dirname, "..", "ui");
 
+// Room around the window for the object's drop shadow, which falls
+// mostly downward.
+const margin = { top: 48, side: 48, bottom: 80 };
+const backdrop = `
+  html {
+    box-sizing: border-box !important;
+    padding: ${margin.top}px ${margin.side}px ${margin.bottom}px !important;
+  }
+  html, body {
+    background: transparent !important;
+    overflow: visible !important;
+  }
+`;
+
 (async () => {
   const browser = await webkit.launch();
   const context = await browser.newContext({
-    viewport: { width: Number(width), height: Number(height) },
+    viewport: { width: Number(width) + 2 * margin.side, height: Number(height) + margin.top + margin.bottom },
     deviceScaleFactor: 2,
     reducedMotion: "reduce",
   });
@@ -18,7 +32,7 @@ const ui = path.join(__dirname, "..", "ui");
   });
   await page.goto(`http://ui.test/?version=${encodeURIComponent(version)}`);
   await page.waitForLoadState("networkidle");
-  await page.addStyleTag({ content: "html, body { background: transparent !important; }" });
+  await page.addStyleTag({ content: backdrop });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(250);
   await page.screenshot({ path: out, omitBackground: true });
