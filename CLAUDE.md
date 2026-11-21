@@ -48,11 +48,32 @@ changed in the sound (levels, which notes or noises are affected).
   Screenshot workflow also retakes it on main, but can't update the
   `alt` text.
 
+## Bump and install after every change
+
+Whenever a request changes what the plugin does or shows (anything
+under `plugin/src` or `ui/`, or its dependencies), finish by bumping
+the version and installing the new build, without being asked. The
+version is printed on the panel, so the user can tell which build the
+host loaded.
+
+1. Commit the change itself first.
+2. Run `scripts/bump.sh` with `patch` for a fix or a tweak, or `minor`
+   for a new control or feature, or a change to the sound. Use `major`
+   only when the user asks. It updates `version` in the root
+   `Cargo.toml` and `Cargo.lock`.
+3. Commit those two files on their own as "Bump the version to X.Y.Z".
+4. Run `scripts/install.sh`. It builds a release bundle, signs it and
+   installs it into `~/Library/Audio/Plug-Ins/VST3` and `.../CLAP`, then
+   prints the version. Tell the user to restart REAPER to load it.
+
+Bump once per request, not once per commit. Skip it for changes that
+don't ship: docs, tests, CI, scripts and skills.
+
 ## Releases
 
 `release.yml` runs on `vX.Y.Z` tags, which must match `version` in the
-root `Cargo.toml`. To release: bump `version`, commit, then
-`git tag vX.Y.Z && git push origin main vX.Y.Z`.
+root `Cargo.toml`. Each change already bumps the version, so to release,
+tag the current one: `git tag vX.Y.Z && git push origin main vX.Y.Z`.
 
 ## nice-plug fork
 

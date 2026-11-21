@@ -17,3 +17,4 @@ for kind in vst3:VST3 clap:CLAP; do
   codesign --force --deep --sign - "$dest/$dir/$name.$ext"
   echo "Installed $dest/$dir/$name.$ext"
 done
+echo "Version $(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)"
