@@ -35,7 +35,7 @@ impl Default for Halfwit {
 
 impl Plugin for Halfwit {
     const NAME: &'static str = "Halfwit";
-    const VENDOR: &'static str = "Dan Marino";
+    const VENDOR: &'static str = "Daniel Marino";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -116,7 +116,7 @@ impl Plugin for Halfwit {
 }
 
 impl ClapPlugin for Halfwit {
-    const CLAP_ID: &'static str = "com.danmarino.halfwit";
+    const CLAP_ID: &'static str = "com.iamdanielmarino.halfwit";
     const CLAP_DESCRIPTION: Option<&'static str> = Some("Octave-divider bass layer for guitar");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
@@ -125,7 +125,7 @@ impl ClapPlugin for Halfwit {
 }
 
 impl Vst3Plugin for Halfwit {
-    const VST3_CLASS_ID: [u8; 16] = *b"HalfwitDanMarino";
+    const VST3_CLASS_ID: [u8; 16] = *b"HalfwitDanielMar";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::PitchShift];
 }
 
