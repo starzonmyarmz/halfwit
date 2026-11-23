@@ -227,7 +227,9 @@ fn under_a3(feel: Feel) -> Settings {
 #[test]
 fn gate_note_silences_notes_above_it() {
     // E2, A2, D3, G3, A3 play; A#3, B3, E4 don't.
-    for (midi, plays) in [(40, true), (45, true), (50, true), (55, true), (57, true), (58, false), (59, false), (64, false)] {
+    for (midi, plays) in
+        [(40, true), (45, true), (50, true), (55, true), (57, true), (58, false), (59, false), (64, false)]
+    {
         for feel in [Feel::Raw, Feel::Smooth] {
             let out = render(&tone(note_hz(midi), 1.0, SR), SR, under_a3(feel));
             let level = peak(&out[(SR / 2.0) as usize..]);

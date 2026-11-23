@@ -1,14 +1,13 @@
 use crate::bridge::Bridge;
 use baseview::dpi::LogicalSize;
 use baseview::{
-    Event, EventStatus, HandlerError, TimerHandle, Window, WindowContext, WindowHandler, WindowSettings,
-    WindowSize,
+    Event, EventStatus, HandlerError, TimerHandle, Window, WindowContext, WindowHandler, WindowSettings, WindowSize,
 };
 use keyboard_types::{KeyState, Modifiers};
 use nice_plug::context::gui::GuiContext;
 use nice_plug::editor::dpi::{LogicalSize as EditorLogicalSize, NativeSize, Size};
 use nice_plug::editor::{HostCallbacks, HostMainThreadCaller, HostMethods, SpawnedEditor};
-use nice_plug::prelude::{Editor, ParentWindowHandle, Params};
+use nice_plug::prelude::{Editor, Params, ParentWindowHandle};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::error::Error;
