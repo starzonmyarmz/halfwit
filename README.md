@@ -91,8 +91,8 @@ Download the zip from
 
 ```sh
 cargo xtask bundle halfwit --release       # target/bundled/Halfwit.{vst3,clap}
-scripts/bump.sh [patch|minor|major]        # bump the version (patch by default)
-scripts/install.sh                         # bundle, sign ad hoc and install on macOS
+scripts/install.sh                         # bundle, sign ad hoc and install on macOS as X.Y.Z-dev+<sha>
+scripts/release --dry-run                  # what the next release would be
 scripts/clap-validator.sh target/bundled/Halfwit.clap
 ```
 
@@ -101,7 +101,7 @@ scripts/clap-validator.sh target/bundled/Halfwit.clap
 `cargo test` runs the engine offline: a guitar DI rendered against
 stored golden renders, plus synthetic tests for tracking, the gate,
 routing and sample rates. After an intended change to the sound, rerun
-with `HALFWIT_BLESS=1` to rewrite the renders, and listen to them before
+with `BLESS=1` to rewrite the renders, and listen to them before
 committing.
 
 ## Working on the UI
@@ -120,12 +120,17 @@ before starting the host.
 
 ## CI and releases
 
-- `check.yml` runs on pushes to main and on PRs: the tests and
-  clap-validator on macOS, and clap-validator on the Windows build.
-- `release.yml` runs on `vX.Y.Z` tags. The tag must match `version` in
-  the root `Cargo.toml`. It builds a universal macOS bundle and a
-  Windows bundle, validates both, and publishes `Halfwit-X.Y.Z.zip`
-  with `INSTALL.txt`.
+- `check.yml` runs on pushes to main and on PRs: rustfmt and clippy, the
+  tests and clap-validator on macOS, and clap-validator on the Windows
+  build. `changelog.yml` checks that a PR with `feat`, `fix` or `perf`
+  commits adds lines to `CHANGELOG.md`.
+- `scripts/release` releases: it works out the version from the commits
+  since the last release (breaking → major, minor before 1.0; `feat` →
+  minor; `fix`, `perf`, `revert` → patch), finalizes `CHANGELOG.md`,
+  commits, tags `vX.Y.Z` and pushes. Add `--dry-run` to only look.
+- `release.yml` runs on that tag. It builds a universal macOS bundle and a
+  Windows bundle, validates both, and publishes `halfwit-X.Y.Z.zip` with
+  `INSTALL.txt` and `SHA256SUMS`, with the changelog section as the notes.
 - `screenshot.yml` runs on pushes to main that touch `ui/`, the version
   or `plugin/src/lib.rs`. It retakes `docs/halfwit.png` with
   `scripts/screenshot.sh`, sets its width in the README, and commits both
@@ -138,7 +143,6 @@ before starting the host.
   adds `ActivateContext::gui_context()`.
 - [Jost](https://github.com/indestructible-type/Jost) by Owen Earl,
   under the SIL Open Font License (`ui/fonts/OFL.txt`).
-- Started from
-  [plugin-template](https://github.com/starzonmyarmz/plugin-template),
-  with the editor from
-  [Patina](https://github.com/starzonmyarmz/patina).
+- Set up with
+  [project-kit](https://github.com/starzonmyarmz/project-kit), with the
+  editor from [Patina](https://github.com/starzonmyarmz/patina).

@@ -19,7 +19,6 @@ permissions:
 
 jobs:
   screenshot:
-    if: github.repository != 'starzonmyarmz/plugin-template'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -34,6 +33,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Retake the screenshot"
+          git commit -m "docs: retake the screenshot"
           git pull --rebase origin main
           git push origin HEAD:main

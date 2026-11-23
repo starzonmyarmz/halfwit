@@ -11,9 +11,9 @@ the version or `PAGE.size`, and commits it when it changed. Retake it
 locally too when a branch changes the UI, so the PR shows the new look and
 the `alt` text gets updated.
 
-1. Run `cargo test` so `ui/mock.json` is known to match the plugin's
-   parameters and defaults, and the shot shows the real controls at
-   their defaults. If it's stale, rewrite it with `BLESS=1 cargo test`.
+1. Check the mock's `specs` in `ui/index.html` match the plugin's
+   parameters and defaults, so the shot shows the real controls at
+   their defaults.
 2. Run `scripts/screenshot.sh`. It needs pngquant and ImageMagick
    (`brew install pngquant imagemagick`). It renders the page against
    its mock in WebKit at 2x and `PAGE.size`, with the version from

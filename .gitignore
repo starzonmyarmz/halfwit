@@ -1,2 +1,6 @@
-target/
 .DS_Store
+.env
+.claude/settings.local.json
+.playwright-mcp/
+.screenshots/
+target/

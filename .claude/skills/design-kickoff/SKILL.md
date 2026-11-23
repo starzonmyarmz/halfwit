@@ -5,15 +5,13 @@ description: Settle a plugin's look with the user before building its editor - t
 
 # Design kickoff
 
-Read the Design section of the template's README first:
-`~/Code/plugin-template/README.md`, or
-https://github.com/starzonmyarmz/plugin-template#design if that isn't
-cloned. Every choice here has to fit it.
+Read the principles in `DESIGN.md` first. Every choice here has to fit
+them.
 Don't write the page until the user has picked the object, palette, art
 and font.
 
 1. **Read the plugin.** Its name, what it does to sound, and its
-   parameters in `plugin/src/lib.rs`. Note which ones could drive art
+   parameters in `plugin/src/params.rs`. Note which ones could drive art
    (a depth, a mix, a time) and which are plain settings.
 2. **Propose the object.** Use AskUserQuestion with two to four
    physical objects that fit the name and vibe (Halfwit is a stompbox,
@@ -40,4 +38,5 @@ and font.
    chose. Then use the `screenshot` skill.
 
 Record the decisions (object, palette, font, control names, where the
-version sits) in the plugin's `CLAUDE.md`, so later changes keep to them.
+version sits) under "This plugin" in `DESIGN.md`, so later changes keep
+to them.

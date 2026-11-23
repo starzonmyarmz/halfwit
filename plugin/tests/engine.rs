@@ -1,39 +1,10 @@
+mod support;
+
 use halfwit::engine::{Engine, Feel, Output, Settings, LATENCY};
 use std::f64::consts::PI;
-use std::path::PathBuf;
+use support::{path, read_wav};
 
 const SR: f32 = 48_000.0;
-
-fn dir(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join(name)
-}
-
-fn read_wav(path: &PathBuf) -> (Vec<f32>, u32) {
-    let mut reader = hound::WavReader::open(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    let spec = reader.spec();
-    let samples = match spec.sample_format {
-        hound::SampleFormat::Float => reader.samples::<f32>().map(Result::unwrap).collect(),
-        hound::SampleFormat::Int => {
-            let scale = (1u32 << (spec.bits_per_sample - 1)) as f32;
-            reader.samples::<i32>().map(|s| s.unwrap() as f32 / scale).collect()
-        }
-    };
-    (samples, spec.sample_rate)
-}
-
-fn write_wav(path: &PathBuf, samples: &[f32], sample_rate: u32) {
-    let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
-    let mut writer = hound::WavWriter::create(path, spec).unwrap();
-    for &s in samples {
-        writer.write_sample(s).unwrap();
-    }
-    writer.finalize().unwrap();
-}
 
 /// Runs mono input through the engine in host-sized blocks and returns the
 /// left main output and the bass output.
@@ -89,25 +60,10 @@ fn peak(signal: &[f32]) -> f32 {
     signal.iter().fold(0.0, |m, s| m.max(s.abs()))
 }
 
-/// Compares against the stored render. Set HALFWIT_BLESS=1 to rewrite it
-/// after an intended change, then listen to the new file before committing.
 fn check_golden(name: &str, feel: Feel) {
-    let (input, sample_rate) = read_wav(&dir("di").join("riff.wav"));
+    let (input, sample_rate) = read_wav(&path("di", "riff.wav"));
     let output = render(&input, sample_rate as f32, bass_only(feel));
-    let path = dir("golden").join(format!("{name}.wav"));
-    if std::env::var_os("HALFWIT_BLESS").is_some() {
-        write_wav(&path, &output, sample_rate);
-        return;
-    }
-    let (expected, _) = read_wav(&path);
-    assert_eq!(expected.len(), output.len(), "{name}: length changed");
-    let (at, diff) = output
-        .iter()
-        .zip(&expected)
-        .map(|(a, b)| (a - b).abs())
-        .enumerate()
-        .fold((0, 0.0f32), |best, (i, d)| if d > best.1 { (i, d) } else { best });
-    assert!(diff < 1e-4, "{name}: differs from golden by {diff} at sample {at}; rerun with HALFWIT_BLESS=1 if intended");
+    support::check_golden(name, &output, sample_rate);
 }
 
 #[test]
@@ -336,7 +292,7 @@ fn gate_note_switches_within_a_few_cycles() {
 fn gate_note_leaves_a_riff_under_it_alone() {
     // The riff stays at G2 and below, so with Gate: Note on A3 nothing should be
     // cut, pick attacks included.
-    let (input, sample_rate) = read_wav(&dir("di").join("riff.wav"));
+    let (input, sample_rate) = read_wav(&path("di", "riff.wav"));
     let sr = sample_rate as f32;
     let off = render(&input, sr, bass_only(Feel::Raw));
     let on = render(&input, sr, Settings { note_max_hz: note_hz(57), ..bass_only(Feel::Raw) });

@@ -4,6 +4,12 @@ cd "$(dirname "$0")/.."
 
 crate=halfwit
 name=$(sed -n 's/^name = "\(.*\)"/\1/p' bundler.toml)
+version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
+build=$(git rev-parse --short HEAD)
+if [ -n "$(git status --porcelain)" ]; then
+  build="$build.dirty"
+fi
+export PLUGIN_VERSION="$version-dev+$build"
 
 cargo xtask bundle "$crate" --release
 
@@ -17,4 +23,4 @@ for kind in vst3:VST3 clap:CLAP; do
   codesign --force --deep --sign - "$dest/$dir/$name.$ext"
   echo "Installed $dest/$dir/$name.$ext"
 done
-echo "Version $(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)"
+echo "Version $PLUGIN_VERSION. Restart the host to load it."
