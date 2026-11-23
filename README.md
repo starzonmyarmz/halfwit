@@ -1,12 +1,13 @@
 # Halfwit
 
+Octave-divider bass layer for guitar: a fake bassist for two-piece bands
+
 <img src="docs/halfwit.png" width="325" alt="Halfwit, a mustard-yellow stompbox with a row of level, drive, tone and blend knobs, a feel toggle, an output selector, a gate panel with threshold, release, dynamics and note knobs, and a footswitch">
 
-An octave-divider bass splitter for guitar, as a VST3 and CLAP plugin
-for macOS and Windows. It's for two-piece bands with no bass player: it
-builds a bass part from the guitar signal, one octave down, and sends it
-out a separate Bass output so it can go to its own track, with its own
-amp, while the guitar carries on untouched.
+A VST3 and CLAP plugin for macOS and Windows. It builds a bass part from
+the guitar signal, one octave down, and sends it out a separate Bass
+output so it can go to its own track, with its own amp, while the guitar
+carries on untouched.
 
 It's a digital take on the old flip-flop divider pedals, not a pitch
 shifter. Single notes and riffs track tightly; chords turn to mush, and
