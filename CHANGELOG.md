@@ -4,6 +4,8 @@ What changed for people using Halfwit, newest first. Code-only work stays in the
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-23
+
 ### Changed
 - Halfwit has new plugin IDs and lists its maker as Daniel Marino. Hosts see this version as a new plugin, so projects saved with 0.3.0 or earlier need Halfwit added again.
 
