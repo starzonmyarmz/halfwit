@@ -5,11 +5,11 @@ description: Retake the plugin's README screenshot (docs/<name>.png) after a vis
 
 # Retake the screenshot
 
-The README shows `docs/<name>.png`, where `<name>` is the crate name. The
-Screenshot workflow retakes it on every push to main that touches the UI,
-the version or `PAGE.size`, and commits it when it changed. Retake it
-locally too when a branch changes the UI, so the PR shows the new look and
-the `alt` text gets updated.
+The README shows `docs/<name>.png`, where `<name>` is the crate name.
+Nothing on GitHub retakes it. Retake it whenever a change to the UI or
+`PAGE.size` shows in the window, and commit it with that change.
+`scripts/release` retakes it too, through `scripts/pre-release.sh`, so the
+release commit's shot shows the new version.
 
 1. Check the mock's `specs` in `ui/index.html` match the plugin's
    parameters and defaults, so the shot shows the real controls at

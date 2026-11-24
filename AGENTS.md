@@ -29,7 +29,7 @@ Work on the editor in a browser against the mock: `cd ui && python3 -m http.serv
 - `plugin/tests/`: engine tests, golden renders in `golden/` and real DI recordings in `di/`. `support/` has the WAV and golden helpers.
 - `ui/index.html`: the whole editor, compiled into the plugin, with a hand-written mock bridge (`mockBridge()`) for running it in a browser.
 - `xtask/`, `bundler.toml`: nice-plug's bundler.
-- `scripts/`: install, clap-validator, screenshot and release.
+- `scripts/`: install, clap-validator, screenshot and release, with `pre-release.sh` retaking the screenshot for each release.
 - `.claude/skills/`: `design-kickoff` (settle the look before building the editor), `screenshot` and `bless-goldens`. Use them rather than working from memory.
 
 A new parameter goes in five places: `Settings` in `engine.rs` (with its `Default`), `HalfwitParams` in `params.rs` and its `settings()` mapping, the mock's `specs` in `ui/index.html`, a `data-knob` or `data-toggle` element in the markup, and the controls table in `README.md`.
@@ -72,7 +72,7 @@ Run `scripts/clap-validator.sh` after any DSP change, not just in CI.
 - SVG reused through `<use>` doesn't get page CSS rules. Stamp it from a `<template>` instead, or put attributes on the elements themselves.
 - Fonts can't load from the network: embed them as base64 `@font-face` data URLs, and keep the file and its license in `ui/fonts`.
 - The macOS webview is the system WKWebView, so check a newer CSS feature is in Safari for the macOS versions you support. Windows uses WebView2.
-- After a visible UI change, retake the screenshot with the `screenshot` skill and keep the README `alt` text current. The Screenshot workflow retakes it on main too, but can't update the `alt` text.
+- After a visible UI change, retake the screenshot with the `screenshot` skill, commit it with the change, and keep the README `alt` text current. Nothing on GitHub retakes it.
 
 ### Testing in REAPER
 
