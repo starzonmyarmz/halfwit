@@ -23,4 +23,7 @@ for kind in vst3:VST3 clap:CLAP; do
   codesign --force --deep --sign - "$dest/$dir/$name.$ext"
   echo "Installed $dest/$dir/$name.$ext"
 done
+if [ -x scripts/install-extra.sh ]; then
+  scripts/install-extra.sh
+fi
 echo "Version $PLUGIN_VERSION. Restart the host to load it."

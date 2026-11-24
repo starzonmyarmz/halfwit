@@ -1,14 +1,16 @@
-_commit: f903bed
+_commit: b753eee
 _src_path: gh:starzonmyarmz/project-kit
 app_id: com.iamdanielmarino.halfwit
 author: Daniel Marino
 description: 'Octave-divider bass layer for guitar: a fake bassist for two-piece bands'
 design_doc: true
 display_name: Halfwit
+goldens: true
 name: halfwit
 oss_community: false
 owner: starzonmyarmz
 public: true
+screenshot: true
 ships:
 - github-release
 stack: vst-plugin
