@@ -18,7 +18,7 @@ macOS (Apple Silicon and Intel)
 Halfwit isn’t signed or notarized, so macOS may refuse to load it. If your
 DAW doesn’t list it after a rescan, open Terminal, run this, then rescan:
 
-   xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/Halfwit.vst3 ~/Library/Audio/Plug-Ins/CLAP/Halfwit.clap
+   xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Halfwit.vst3" ~/Library/Audio/Plug-Ins/CLAP/"Halfwit.clap"
 
 
 Windows

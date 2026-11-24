@@ -30,7 +30,7 @@ Work on the editor in a browser against the mock: `cd ui && python3 -m http.serv
 - `ui/index.html`: the whole editor, compiled into the plugin, with a hand-written mock bridge (`mockBridge()`) for running it in a browser.
 - `xtask/`, `bundler.toml`: nice-plug's bundler.
 - `scripts/`: install, clap-validator, screenshot and release.
-- `.claude/skills/`: `design-kickoff` (settle the look before building the editor), `screenshot`, `port-jsfx` and `bless-goldens`. Use them rather than working from memory.
+- `.claude/skills/`: `design-kickoff` (settle the look before building the editor), `screenshot` and `bless-goldens`. Use them rather than working from memory.
 
 A new parameter goes in five places: `Settings` in `engine.rs` (with its `Default`), `HalfwitParams` in `params.rs` and its `settings()` mapping, the mock's `specs` in `ui/index.html`, a `data-knob` or `data-toggle` element in the markup, and the controls table in `README.md`.
 
@@ -85,10 +85,6 @@ Plugins pin the `patina` branch of [starzonmyarmz/nice-plug](https://github.com/
 
 - Upgrading: rebase `patina` onto upstream, push, and bump the `rev` in `plugin/` and `xtask/` `Cargo.toml` in every plugin. Then run the tests and clap-validator in each.
 - Don't send the patch upstream. It was written with AI, and nice-plug's [AI policy](https://rust.audio/community/ai/) doesn't accept AI-written code, PR descriptions or comments.
-
-### Ported from a JSFX
-
-If the plugin started from a JSFX, never mention the JSFX anywhere in this repo: not in the README, docs, code, comments, test names, parameter tables or commit messages.
 
 ## Conventions
 
